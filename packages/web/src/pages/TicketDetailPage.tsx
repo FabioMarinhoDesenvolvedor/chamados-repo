@@ -1,0 +1,253 @@
+import { FormEvent, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import {
+  COMPLEXITIES,
+  Complexity,
+  TicketAttachment,
+  TicketStatus,
+  TICKET_STATUSES,
+} from '@chamados/shared';
+import { useAuth } from '@/auth/auth-context';
+import {
+  useAddComment,
+  useAssignTicket,
+  useTicket,
+  useUpdateStatus,
+  useUpdateTicket,
+  useUploadAttachments,
+} from '@/features/tickets/api';
+import { useUsers } from '@/features/users/api';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Select } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { PriorityBadge } from '@/components/PriorityBadge';
+import { StatusBadge } from '@/components/StatusBadge';
+import { AttachmentGallery } from '@/components/AttachmentGallery';
+import { AttachmentInput } from '@/components/AttachmentInput';
+import { COMPLEXITY_LABEL, STATUS_LABEL, complexityLabel } from '@/lib/labels';
+
+const DONE: TicketStatus[] = ['RESOLVED', 'CLOSED'];
+
+type FeedItem =
+  | { kind: 'status'; at: string; from: TicketStatus | null; to: TicketStatus }
+  | { kind: 'comment'; at: string; author: string; body: string; attachments: TicketAttachment[] };
+
+export function TicketDetailPage() {
+  const { id = '' } = useParams();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
+  const { data: ticket, isLoading } = useTicket(id);
+  const updateStatus = useUpdateStatus(id);
+  const updateTicket = useUpdateTicket(id);
+  const assignTicket = useAssignTicket(id);
+  const addComment = useAddComment(id);
+  const uploadAttachments = useUploadAttachments();
+  const { data: allUsers } = useUsers(isAdmin);
+  const [comment, setComment] = useState('');
+  const [commentFiles, setCommentFiles] = useState<File[]>([]);
+
+  if (isLoading) return <p className="text-gray-500">Carregando...</p>;
+  if (!ticket) return <p className="text-gray-500">Chamado não encontrado.</p>;
+
+  const adminUsers = allUsers?.filter((u) => u.role === 'ADMIN') ?? [];
+
+  const feed: FeedItem[] = [
+    ...ticket.history.map((h) => ({
+      kind: 'status' as const,
+      at: h.createdAt,
+      from: h.fromStatus,
+      to: h.toStatus,
+    })),
+    ...ticket.comments.map((c) => ({
+      kind: 'comment' as const,
+      at: c.createdAt,
+      author: c.author?.name ?? 'Usuário',
+      body: c.body,
+      attachments: c.attachments ?? [],
+    })),
+  ].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+
+  async function onAddComment(e: FormEvent) {
+    e.preventDefault();
+    if (!comment.trim()) return;
+    const created = await addComment.mutateAsync({ body: comment });
+    if (commentFiles.length > 0 && created?.id) {
+      await uploadAttachments.mutateAsync({ ticketId: id, files: commentFiles, commentId: created.id });
+    }
+    setComment('');
+    setCommentFiles([]);
+  }
+
+  const sendingComment = addComment.isPending || uploadAttachments.isPending;
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-grena-dark">{ticket.title}</h2>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <PriorityBadge priority={ticket.priority} />
+          <StatusBadge status={ticket.status} />
+          <span className="text-xs text-gray-500">
+            Complexidade: {complexityLabel(ticket.complexity)}
+          </span>
+        </div>
+      </div>
+
+      <Card className="p-6">
+        <h3 className="mb-2 text-sm font-semibold text-grena">Descrição</h3>
+        <p className="whitespace-pre-wrap text-sm text-gray-800">{ticket.description}</p>
+        <dl className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+          <div>
+            <dt className="text-gray-500">Departamento</dt>
+            <dd className="font-medium">{ticket.department?.name ?? '—'}</dd>
+          </div>
+          <div>
+            <dt className="text-gray-500">Solicitante</dt>
+            <dd className="font-medium">{ticket.requester?.name ?? '—'}</dd>
+          </div>
+          <div>
+            <dt className="text-gray-500">Responsável</dt>
+            <dd className="font-medium">{ticket.assignee?.name ?? 'Não atribuído'}</dd>
+          </div>
+          <div>
+            <dt className="text-gray-500">Aberto em</dt>
+            <dd className="font-medium">{new Date(ticket.createdAt).toLocaleString('pt-BR')}</dd>
+          </div>
+          {ticket.resolvedAt && (
+            <div>
+              <dt className="text-gray-500">Resolvido em</dt>
+              <dd className="font-medium">{new Date(ticket.resolvedAt).toLocaleString('pt-BR')}</dd>
+            </div>
+          )}
+        </dl>
+        {ticket.attachments.length > 0 && (
+          <div className="mt-4">
+            <h4 className="mb-2 text-xs font-semibold uppercase text-gray-500">Imagens</h4>
+            <AttachmentGallery attachments={ticket.attachments} />
+          </div>
+        )}
+      </Card>
+
+      {isAdmin && (
+        <Card className="p-6">
+          <h3 className="mb-4 text-sm font-semibold text-grena">Ações do administrador</h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label>Complexidade</Label>
+              <Select
+                value={ticket.complexity ?? ''}
+                onChange={(e) =>
+                  e.target.value &&
+                  updateTicket.mutate({ complexity: e.target.value as Complexity })
+                }
+              >
+                <option value="" disabled>
+                  Definir complexidade...
+                </option>
+                {COMPLEXITIES.map((c) => (
+                  <option key={c} value={c}>
+                    {COMPLEXITY_LABEL[c]}
+                  </option>
+                ))}
+              </Select>
+              <p className="mt-1 text-xs text-gray-500">
+                Definir a complexidade calcula a prioridade e tira o chamado da triagem.
+              </p>
+            </div>
+            <div>
+              <Label>Alterar status</Label>
+              <Select
+                value={ticket.status}
+                onChange={(e) => updateStatus.mutate({ status: e.target.value as TicketStatus })}
+              >
+                {TICKET_STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {STATUS_LABEL[s]}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <Label>Responsável</Label>
+              <Select
+                value={ticket.assignedTo ?? ''}
+                onChange={(e) => e.target.value && assignTicket.mutate({ assignedTo: e.target.value })}
+              >
+                <option value="" disabled>
+                  Selecione um admin...
+                </option>
+                {adminUsers.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="flex items-end">
+              {!DONE.includes(ticket.status) && (
+                <Button
+                  className="w-full"
+                  disabled={updateStatus.isPending}
+                  onClick={() => updateStatus.mutate({ status: 'RESOLVED' })}
+                >
+                  ✓ Concluir chamado
+                </Button>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
+
+      <Card className="p-6">
+        <h3 className="mb-4 text-sm font-semibold text-grena">Acompanhamento</h3>
+        <ol className="space-y-4 border-l-2 border-grena/20 pl-4">
+          {feed.map((item, idx) => (
+            <li key={idx} className="relative">
+              <span className="absolute -left-[21px] top-1 h-3 w-3 rounded-full bg-grena" />
+              <div className="text-xs text-gray-400">
+                {new Date(item.at).toLocaleString('pt-BR')}
+              </div>
+              {item.kind === 'status' ? (
+                <div className="text-sm text-gray-700">
+                  {item.from ? `${STATUS_LABEL[item.from]} → ` : 'Criado: '}
+                  <span className="font-medium">{STATUS_LABEL[item.to]}</span>
+                </div>
+              ) : (
+                <div className="rounded-md bg-grena/5 p-3">
+                  <div className="text-sm font-medium text-gray-800">{item.author}</div>
+                  <p className="whitespace-pre-wrap text-sm text-gray-700">{item.body}</p>
+                  {item.attachments.length > 0 && (
+                    <div className="mt-2">
+                      <AttachmentGallery attachments={item.attachments} />
+                    </div>
+                  )}
+                </div>
+              )}
+            </li>
+          ))}
+        </ol>
+
+        {!isAdmin && DONE.includes(ticket.status) ? (
+          <p className="mt-6 rounded-md bg-gray-50 p-3 text-sm text-gray-500">
+            Este chamado foi concluído. Comentários encerrados.
+          </p>
+        ) : (
+          <form onSubmit={onAddComment} className="mt-6 space-y-2">
+            <Textarea
+              rows={3}
+              placeholder="Escreva um comentário..."
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+            />
+            <AttachmentInput files={commentFiles} onChange={setCommentFiles} disabled={sendingComment} />
+            <Button type="submit" disabled={sendingComment || !comment.trim()}>
+              {sendingComment ? 'Enviando...' : 'Comentar'}
+            </Button>
+          </form>
+        )}
+      </Card>
+    </div>
+  );
+}

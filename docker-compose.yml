@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: chamados-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: chamados
+      POSTGRES_PASSWORD: chamados
+      POSTGRES_DB: chamados
+    ports:
+      - "5432:5432"
+    volumes:
+      - chamados_pgdata:/var/lib/postgresql/data
+
+volumes:
+  chamados_pgdata:

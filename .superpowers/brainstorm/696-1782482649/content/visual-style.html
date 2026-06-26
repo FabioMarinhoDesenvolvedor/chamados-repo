@@ -1,0 +1,95 @@
+<h2>Direção visual — Grená do Juventus + branco</h2>
+<p class="subtitle">Três níveis de "efeito moderno". Clique na que mais combina com o que você imagina (pode comentar ajustes no terminal).</p>
+
+<div class="cards">
+
+  <!-- A: Clássico -->
+  <div class="card" data-choice="classico" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:0;overflow:hidden;background:#FAF7F8">
+      <div style="font-family:system-ui;height:180px;display:flex">
+        <div style="width:64px;background:#7A1C27;color:#fff;padding:10px 8px;font-size:11px">
+          <div style="font-weight:700;margin-bottom:12px">JTV</div>
+          <div style="opacity:.95;background:rgba(255,255,255,.15);border-radius:6px;padding:4px;margin-bottom:4px">▦</div>
+          <div style="opacity:.8;padding:4px">＋</div>
+          <div style="opacity:.8;padding:4px">☰</div>
+        </div>
+        <div style="flex:1;padding:12px;background:#FAF7F8">
+          <div style="font-weight:700;color:#3a3a3a;font-size:12px;margin-bottom:8px">Chamados</div>
+          <div style="display:flex;gap:6px;margin-bottom:8px">
+            <div style="flex:1;background:#fff;border:1px solid #eee;border-radius:8px;padding:8px;box-shadow:0 1px 2px rgba(0,0,0,.05)"><div style="font-size:9px;color:#999">Abertos</div><div style="font-weight:700;color:#7A1C27">12</div></div>
+            <div style="flex:1;background:#fff;border:1px solid #eee;border-radius:8px;padding:8px;box-shadow:0 1px 2px rgba(0,0,0,.05)"><div style="font-size:9px;color:#999">Urgentes</div><div style="font-weight:700;color:#7A1C27">3</div></div>
+          </div>
+          <div style="background:#fff;border:1px solid #eee;border-radius:8px;padding:8px">
+            <div style="height:8px;background:#f0eaea;border-radius:4px;margin-bottom:6px;width:80%"></div>
+            <div style="height:8px;background:#f0eaea;border-radius:4px;width:60%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A · Grená Clássico</h3>
+      <p>Sólido, limpo e corporativo. Sidebar grená, cards brancos, sombras suaves. Sóbrio e atemporal.</p>
+    </div>
+  </div>
+
+  <!-- B: Moderno (gradiente + glass) -->
+  <div class="card" data-choice="moderno" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:0;overflow:hidden">
+      <div style="font-family:system-ui;height:180px;display:flex;background:linear-gradient(135deg,#FAF7F8,#f3e9eb)">
+        <div style="width:64px;background:linear-gradient(180deg,#8C2233,#5A0F1C);color:#fff;padding:10px 8px;font-size:11px;box-shadow:4px 0 14px rgba(122,28,39,.25)">
+          <div style="font-weight:700;margin-bottom:12px">JTV</div>
+          <div style="background:rgba(255,255,255,.22);border-radius:8px;padding:5px;margin-bottom:5px;box-shadow:0 0 10px rgba(255,255,255,.25)">▦</div>
+          <div style="opacity:.85;padding:5px">＋</div>
+          <div style="opacity:.85;padding:5px">☰</div>
+        </div>
+        <div style="flex:1;padding:12px">
+          <div style="font-weight:800;color:#5A0F1C;font-size:12px;margin-bottom:8px">Dashboard</div>
+          <div style="display:flex;gap:6px;margin-bottom:8px">
+            <div style="flex:1;background:rgba(255,255,255,.65);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.7);border-radius:12px;padding:8px;box-shadow:0 6px 16px rgba(122,28,39,.12)"><div style="font-size:9px;color:#a06">Abertos</div><div style="font-weight:800;color:#7A1C27;font-size:15px">12</div></div>
+            <div style="flex:1;background:linear-gradient(135deg,#7A1C27,#A23B47);border-radius:12px;padding:8px;color:#fff;box-shadow:0 6px 16px rgba(122,28,39,.35)"><div style="font-size:9px;opacity:.85">Urgentes</div><div style="font-weight:800;font-size:15px">3</div></div>
+          </div>
+          <div style="background:rgba(255,255,255,.65);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.7);border-radius:12px;padding:8px;box-shadow:0 6px 16px rgba(122,28,39,.10)">
+            <div style="height:8px;background:linear-gradient(90deg,#e9d6da,#f6eef0);border-radius:4px;margin-bottom:6px;width:85%"></div>
+            <div style="height:8px;background:linear-gradient(90deg,#e9d6da,#f6eef0);border-radius:4px;width:55%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B · Grená Moderno ⭐</h3>
+      <p>Gradientes grená, cards "vidro" (glassmorphism), sombras coloridas e brilho suave, cantos arredondados. Recomendado: moderno sem perder a identidade.</p>
+    </div>
+  </div>
+
+  <!-- C: Dark -->
+  <div class="card" data-choice="dark" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:0;overflow:hidden">
+      <div style="font-family:system-ui;height:180px;display:flex;background:#1a1013">
+        <div style="width:64px;background:#22141a;color:#fff;padding:10px 8px;font-size:11px;border-right:1px solid rgba(255,255,255,.06)">
+          <div style="font-weight:700;margin-bottom:12px;color:#E0566A">JTV</div>
+          <div style="background:rgba(224,86,106,.18);color:#E0566A;border-radius:8px;padding:5px;margin-bottom:5px;box-shadow:0 0 12px rgba(224,86,106,.4)">▦</div>
+          <div style="opacity:.7;padding:5px">＋</div>
+          <div style="opacity:.7;padding:5px">☰</div>
+        </div>
+        <div style="flex:1;padding:12px">
+          <div style="font-weight:800;color:#fff;font-size:12px;margin-bottom:8px">Dashboard</div>
+          <div style="display:flex;gap:6px;margin-bottom:8px">
+            <div style="flex:1;background:#22141a;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:8px"><div style="font-size:9px;color:#b88">Abertos</div><div style="font-weight:800;color:#fff;font-size:15px">12</div></div>
+            <div style="flex:1;background:linear-gradient(135deg,#A23B47,#7A1C27);border-radius:12px;padding:8px;color:#fff;box-shadow:0 0 16px rgba(162,59,71,.5)"><div style="font-size:9px;opacity:.9">Urgentes</div><div style="font-weight:800;font-size:15px">3</div></div>
+          </div>
+          <div style="background:#22141a;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:8px">
+            <div style="height:8px;background:rgba(255,255,255,.10);border-radius:4px;margin-bottom:6px;width:85%"></div>
+            <div style="height:8px;background:rgba(255,255,255,.10);border-radius:4px;width:55%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C · Grená Dark</h3>
+      <p>Fundo escuro com realces grená/coral que "brilham". Bem moderno e impactante, mas foge do "grená e branco" tradicional do clube.</p>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:18px">Obs.: a paleta base será grená <b>#7A1C27</b>, grená escuro <b>#5A0F1C</b>, realce <b>#A23B47</b> e branco/off-white <b>#FAF7F8</b>. Dá pra afinar o tom depois.</p>

@@ -1,0 +1,159 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum Complexity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TicketStatus {
+  TRIAGE
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         Role     @default(USER)
+  mustChangePassword Boolean @default(true) @map("must_change_password")
+  departmentId String?  @map("department_id")
+  department   Department? @relation(fields: [departmentId], references: [id])
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  requestedTickets Ticket[]              @relation("requester")
+  assignedTickets  Ticket[]              @relation("assignee")
+  comments         TicketComment[]
+  statusChanges    TicketStatusHistory[]
+  readStates       TicketReadState[]
+
+  @@index([email])
+  @@map("users")
+}
+
+model Department {
+  id             String   @id @default(uuid())
+  name           String   @unique
+  priorityWeight Int      @map("priority_weight")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  users   User[]
+  tickets Ticket[]
+
+  @@map("departments")
+}
+
+model Ticket {
+  id           String       @id @default(uuid())
+  title        String
+  description  String
+  complexity   Complexity?
+  priority     Priority?
+  status       TicketStatus @default(TRIAGE)
+  departmentId String       @map("department_id")
+  department   Department   @relation(fields: [departmentId], references: [id])
+  requesterId  String       @map("requester_id")
+  requester    User         @relation("requester", fields: [requesterId], references: [id])
+  assignedTo   String?      @map("assigned_to")
+  assignee     User?        @relation("assignee", fields: [assignedTo], references: [id])
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  resolvedAt   DateTime?    @map("resolved_at")
+
+  lastActivityAt DateTime @default(now()) @map("last_activity_at")
+  lastActivityBy String?  @map("last_activity_by")
+
+  comments    TicketComment[]
+  history     TicketStatusHistory[]
+  readStates  TicketReadState[]
+  attachments TicketAttachment[]
+
+  @@index([status, priority])
+  @@index([requesterId])
+  @@index([assignedTo])
+  @@map("tickets")
+}
+
+model TicketComment {
+  id        String   @id @default(uuid())
+  ticketId  String   @map("ticket_id")
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId  String   @map("author_id")
+  author    User     @relation(fields: [authorId], references: [id])
+  body      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  attachments TicketAttachment[]
+
+  @@index([ticketId])
+  @@map("ticket_comments")
+}
+
+model TicketAttachment {
+  id           String         @id @default(uuid())
+  ticketId     String         @map("ticket_id")
+  ticket       Ticket         @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  commentId    String?        @map("comment_id")
+  comment      TicketComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  filename     String
+  originalName String         @map("original_name")
+  mime         String
+  size         Int
+  createdAt    DateTime       @default(now()) @map("created_at")
+
+  @@index([ticketId])
+  @@index([commentId])
+  @@map("ticket_attachments")
+}
+
+model TicketStatusHistory {
+  id            String       @id @default(uuid())
+  ticketId      String       @map("ticket_id")
+  ticket        Ticket       @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  fromStatus    TicketStatus? @map("from_status")
+  toStatus      TicketStatus @map("to_status")
+  changedBy     String       @map("changed_by")
+  changedByUser User         @relation(fields: [changedBy], references: [id])
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  @@index([ticketId])
+  @@map("ticket_status_history")
+}
+
+model TicketReadState {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  user       User     @relation(fields: [userId], references: [id])
+  ticketId   String   @map("ticket_id")
+  ticket     Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  lastSeenAt DateTime @default(now()) @map("last_seen_at")
+
+  @@unique([userId, ticketId])
+  @@index([userId])
+  @@map("ticket_read_state")
+}
