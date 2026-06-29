@@ -8,7 +8,7 @@ import { Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import { TicketStatus } from '@chamados/shared';
+import { Priority, TicketStatus } from '@chamados/shared';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { DepartmentsRepository } from '../departments/departments.repository';
 import { UsersRepository } from '../users/users.repository';
@@ -17,6 +17,7 @@ import { CreateTicketDto } from './dto/create-ticket.dto';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
 import { TicketQueryDto } from './dto/ticket-query.dto';
 import { PriorityService } from './priority.service';
+import { SlaService } from './sla.service';
 import { TicketsRepository } from './tickets.repository';
 import { attachmentUrl, attachmentsDir, ensureAttachmentsDir } from './attachments.config';
 
@@ -53,6 +54,7 @@ export class TicketsService {
     private readonly users: UsersRepository,
     private readonly priority: PriorityService,
     private readonly vault: VaultService,
+    private readonly sla: SlaService,
   ) {}
 
   async create(dto: CreateTicketDto, user: AuthUser) {
@@ -123,10 +125,12 @@ export class TicketsService {
     );
     const seen = new Map(states.map((s) => [s.ticketId, s.lastSeenAt]));
 
-    return tickets.map((t) => ({
-      ...t,
-      hasUnread: this.isUnread(t.lastActivityAt, t.lastActivityBy, seen.get(t.id), user.userId),
-    }));
+    return tickets.map((t) =>
+      this.withSla({
+        ...t,
+        hasUnread: this.isUnread(t.lastActivityAt, t.lastActivityBy, seen.get(t.id), user.userId),
+      }),
+    );
   }
 
   async detail(id: string, user: AuthUser) {
@@ -134,14 +138,14 @@ export class TicketsService {
     if (!ticket) throw new NotFoundException('Chamado não encontrado');
     this.ensureCanView(ticket.requesterId, user);
     await this.repo.markSeen(user.userId, id);
-    return {
+    return this.withSla({
       ...ticket,
       attachments: ticket.attachments.map(toAttachmentDto),
       comments: ticket.comments.map((c) => ({
         ...c,
         attachments: c.attachments.map(toAttachmentDto),
       })),
-    };
+    });
   }
 
   async addAttachments(
@@ -237,6 +241,20 @@ export class TicketsService {
       throw new ForbiddenException('Este chamado foi concluído. Não é possível adicionar comentários.');
     }
     return this.repo.addComment(id, user.userId, body);
+  }
+
+  // Anexa o prazo de SLA derivado (nulo enquanto em triagem / sem prioridade).
+  private withSla<T extends { priority: Priority | null; slaStartedAt: Date | null }>(
+    t: T,
+  ): T & { slaHours: number | null; slaDueAt: Date | null } {
+    if (!t.priority || !t.slaStartedAt) {
+      return { ...t, slaHours: null, slaDueAt: null };
+    }
+    return {
+      ...t,
+      slaHours: this.sla.hours(t.priority),
+      slaDueAt: this.sla.dueAt(t.priority, t.slaStartedAt),
+    };
   }
 
   private isUnread(

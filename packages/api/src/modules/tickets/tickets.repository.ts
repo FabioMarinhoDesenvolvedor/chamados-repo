@@ -130,6 +130,7 @@ export class TicketsRepository {
           priority: input.priority,
           departmentId: input.departmentId,
           status: input.moveToOpen ? 'OPEN' : undefined,
+          slaStartedAt: input.moveToOpen ? new Date() : undefined,
           lastActivityAt: new Date(),
           lastActivityBy: input.changedBy,
         },
