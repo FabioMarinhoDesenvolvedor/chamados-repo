@@ -16,7 +16,7 @@ import { PRIORITY_LABEL, STATUS_LABEL } from '@/lib/labels';
 const DONE: TicketStatus[] = ['RESOLVED', 'CLOSED'];
 
 // Atalho para o sistema EasyLife (XAMPP no mesmo servidor). Ajuste a URL se necessário.
-const EASY_LIFE_URL = 'http://192.42.0.102';
+const EASY_LIFE_URL = 'https://192.42.0.102/';
 
 function ConcludeButton({ ticket }: { ticket: Ticket }) {
   const updateStatus = useUpdateStatus(ticket.id);
