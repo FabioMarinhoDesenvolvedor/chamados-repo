@@ -8,7 +8,7 @@ import { Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import { Priority, TicketStatus } from '@chamados/shared';
+import { Complexity, Priority, TicketStatus } from '@chamados/shared';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { DepartmentsRepository } from '../departments/departments.repository';
 import { UsersRepository } from '../users/users.repository';
@@ -126,10 +126,13 @@ export class TicketsService {
     const seen = new Map(states.map((s) => [s.ticketId, s.lastSeenAt]));
 
     return tickets.map((t) =>
-      this.withSla({
-        ...t,
-        hasUnread: this.isUnread(t.lastActivityAt, t.lastActivityBy, seen.get(t.id), user.userId),
-      }),
+      this.hideForUser(
+        this.withSla({
+          ...t,
+          hasUnread: this.isUnread(t.lastActivityAt, t.lastActivityBy, seen.get(t.id), user.userId),
+        }),
+        user,
+      ),
     );
   }
 
@@ -138,14 +141,17 @@ export class TicketsService {
     if (!ticket) throw new NotFoundException('Chamado não encontrado');
     this.ensureCanView(ticket.requesterId, user);
     await this.repo.markSeen(user.userId, id);
-    return this.withSla({
-      ...ticket,
-      attachments: ticket.attachments.map(toAttachmentDto),
-      comments: ticket.comments.map((c) => ({
-        ...c,
-        attachments: c.attachments.map(toAttachmentDto),
-      })),
-    });
+    return this.hideForUser(
+      this.withSla({
+        ...ticket,
+        attachments: ticket.attachments.map(toAttachmentDto),
+        comments: ticket.comments.map((c) => ({
+          ...c,
+          attachments: c.attachments.map(toAttachmentDto),
+        })),
+      }),
+      user,
+    );
   }
 
   async addAttachments(
@@ -273,6 +279,15 @@ export class TicketsService {
       slaHours: this.sla.hours(t.priority),
       slaDueAt: this.sla.dueAt(t.priority, t.slaStartedAt),
     };
+  }
+
+  // Esconde do USER os campos de cálculo (prioridade/complexidade) e a nota.
+  // SLA derivado (slaHours/slaDueAt) é mantido — é o que o usuário pode ver.
+  private hideForUser<
+    T extends { priority: Priority | null; complexity: Complexity | null; rating: number | null },
+  >(t: T, user: AuthUser): T {
+    if (user.role !== 'USER') return t;
+    return { ...t, priority: null, complexity: null, rating: null };
   }
 
   private isUnread(
