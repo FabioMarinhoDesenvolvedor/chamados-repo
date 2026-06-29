@@ -21,6 +21,7 @@ export type {
   UpdateTicketStatusInput,
   AssignTicketInput,
   AddCommentInput,
+  CloseTicketInput,
   CreateUserInput,
   UpdateUserInput,
   CreateDepartmentInput,
