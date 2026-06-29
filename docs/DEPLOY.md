@@ -65,13 +65,16 @@ echo "OK: banco 'chamados' criado e .env escrito (segredos aleatórios)."
 ```bash
 cd /opt/chamados
 npm ci
-npm run db:generate                 # gera o Prisma Client (engine Linux)
-npm run db:deploy -w @chamados/api  # aplica as migrations (produção)
-npm run db:seed                     # popula departamentos + usuários de exemplo
-npm run build                       # build de shared + api + web
+npm run db:generate                      # gera o Prisma Client (engine Linux)
+npm run db:deploy -w @chamados/api       # aplica as migrations (produção)
+npm run db:seed:admin -w @chamados/api   # cria SÓ 1 admin (sistema limpo)
+npm run build                            # build de shared + api + web
 ```
-> Usuários do seed: `admin@chamados.local` e `user@chamados.local`, senha `senha123`
-> (troque depois pelo app — ver Fase 7).
+> **Sistema limpo:** nada de chamados/departamentos/usuários de exemplo. Cria apenas o
+> admin `admin@chamados.local` (sem senha definida). Na tela de login use
+> **"Primeiro acesso? Defina sua senha"** para definir a senha do admin; depois cadastre
+> departamentos e usuários pela interface.
+> (Para um e-mail de admin diferente: `ADMIN_EMAIL=voce@empresa.local npm run db:seed:admin -w @chamados/api`.)
 
 ## Fase 5 — Serviço systemd (sobe no boot, reinicia sozinho, roda offline)
 ```bash
