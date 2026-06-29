@@ -122,6 +122,17 @@ Acesse de outra máquina da rede: **http://192.42.0.102:8080**
   ou `PGPASSWORD=... psql -h localhost -U chamados -d chamados`.
 - **Backups**: ficam em `/opt/chamados/data/backups` (job diário 02:00 + botão no app).
 
+## Backup externo (off-site, via SMB)
+Os backups locais (`/opt/chamados/data/backups`) são copiados todo dia para um
+compartilhamento de rede, para sobreviver à perda do servidor.
+- Credenciais (chmod 600): `/opt/chamados/.smbcreds` (`username`/`password`/`domain`).
+- Script: `/opt/chamados/backup-offsite.sh` → envia os `.sql.gz` via `smbclient` para
+  `//172.16.3.10/Conselho/backupchamados`.
+- Agendamento (cron do usuário): `30 2 * * * /opt/chamados/backup-offsite.sh` (após o
+  backup interno das 02:00). Log em `/opt/chamados/data/backup-offsite.log`.
+- Teste manual: `/opt/chamados/backup-offsite.sh && tail /opt/chamados/data/backup-offsite.log`
+  (deve terminar com `OK`).
+
 ## Atualizar o sistema depois (nova versão)
 ```bash
 cd /opt/chamados
