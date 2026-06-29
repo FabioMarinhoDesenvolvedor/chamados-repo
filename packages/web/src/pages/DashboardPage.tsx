@@ -12,7 +12,6 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { KpiCard } from '@/components/KpiCard';
 import { PriorityBarChart } from '@/components/PriorityBarChart';
 import { PRIORITY_LABEL, STATUS_LABEL } from '@/lib/labels';
-import { slaText } from '@/lib/sla';
 
 const DONE: TicketStatus[] = ['RESOLVED', 'CLOSED'];
 
