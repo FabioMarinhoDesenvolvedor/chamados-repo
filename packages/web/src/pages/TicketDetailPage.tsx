@@ -56,7 +56,7 @@ export function TicketDetailPage() {
   if (isLoading) return <p className="text-gray-500">Carregando...</p>;
   if (!ticket) return <p className="text-gray-500">Chamado não encontrado.</p>;
 
-  const sla = slaText(ticket.slaHours, ticket.slaDueAt);
+  const sla = slaText(ticket.slaHours);
   const breached = isSlaBreached(ticket.slaDueAt, ticket.status);
 
   const adminUsers = allUsers?.filter((u) => u.role === 'ADMIN') ?? [];
