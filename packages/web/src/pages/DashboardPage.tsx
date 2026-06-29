@@ -30,7 +30,7 @@ function ConcludeButton({ ticket }: { ticket: Ticket }) {
         updateStatus.mutate({ status: 'RESOLVED' });
       }}
     >
-      <Check className="mr-1 h-4 w-4" /> Concluir
+      <Check className="mr-1 h-4 w-4" /> Resolver
     </Button>
   );
 }
@@ -95,16 +95,18 @@ export function DashboardPage() {
             ))}
           </Select>
         </div>
-        <div className="sm:w-48">
-          <Select value={priority} onChange={(e) => setPriority(e.target.value as Priority | '')}>
-            <option value="">Todas as prioridades</option>
-            {PRIORITIES.map((p) => (
-              <option key={p} value={p}>
-                {PRIORITY_LABEL[p]}
-              </option>
-            ))}
-          </Select>
-        </div>
+        {isAdmin && (
+          <div className="sm:w-48">
+            <Select value={priority} onChange={(e) => setPriority(e.target.value as Priority | '')}>
+              <option value="">Todas as prioridades</option>
+              {PRIORITIES.map((p) => (
+                <option key={p} value={p}>
+                  {PRIORITY_LABEL[p]}
+                </option>
+              ))}
+            </Select>
+          </div>
+        )}
       </div>
 
       {isLoading ? (
@@ -118,7 +120,7 @@ export function DashboardPage() {
               <thead className="bg-grena/5 text-left text-xs uppercase text-grena">
                 <tr>
                   <th className="px-4 py-3">Título</th>
-                  <th className="px-4 py-3">Prioridade</th>
+                  <th className="px-4 py-3">{isAdmin ? 'Prioridade' : 'Prazo'}</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Aberto em</th>
                   {isAdmin && <th className="px-4 py-3">Ação</th>}
@@ -136,7 +138,13 @@ export function DashboardPage() {
                       </Link>
                     </td>
                     <td className="px-4 py-3">
-                      <PriorityBadge priority={t.priority} />
+                      {isAdmin ? (
+                        <PriorityBadge priority={t.priority} />
+                      ) : (
+                        <span className="text-xs text-gray-500">
+                          {t.slaHours != null ? `até ${t.slaHours}h` : 'Em triagem'}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={t.status} />
@@ -166,7 +174,13 @@ export function DashboardPage() {
                     {t.title}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <PriorityBadge priority={t.priority} />
+                    {isAdmin ? (
+                      <PriorityBadge priority={t.priority} />
+                    ) : (
+                      <span className="text-xs text-gray-500">
+                        {t.slaHours != null ? `Prazo: até ${t.slaHours}h` : 'Em triagem'}
+                      </span>
+                    )}
                     <StatusBadge status={t.status} />
                     <span className="ml-auto text-xs text-gray-500">
                       {new Date(t.createdAt).toLocaleDateString('pt-BR')}

@@ -19,8 +19,8 @@ export const STATUS_LABEL: Record<TicketStatus, string> = {
   TRIAGE: 'Em triagem',
   OPEN: 'Aberto',
   IN_PROGRESS: 'Em andamento',
-  RESOLVED: 'Resolvido',
-  CLOSED: 'Fechado',
+  RESOLVED: 'Resolvido (aguardando confirmação)',
+  CLOSED: 'Concluído',
 };
 
 export const STATUS_CLASS: Record<TicketStatus, string> = {

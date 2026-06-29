@@ -8,15 +8,17 @@ import { Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import { TicketStatus } from '@chamados/shared';
+import { Complexity, Priority, TicketStatus } from '@chamados/shared';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { DepartmentsRepository } from '../departments/departments.repository';
 import { UsersRepository } from '../users/users.repository';
+import { toUserPublic } from '../users/user.mapper';
 import { VaultService } from '../vault/vault.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
 import { TicketQueryDto } from './dto/ticket-query.dto';
 import { PriorityService } from './priority.service';
+import { SlaService } from './sla.service';
 import { TicketsRepository } from './tickets.repository';
 import { attachmentUrl, attachmentsDir, ensureAttachmentsDir } from './attachments.config';
 
@@ -53,6 +55,7 @@ export class TicketsService {
     private readonly users: UsersRepository,
     private readonly priority: PriorityService,
     private readonly vault: VaultService,
+    private readonly sla: SlaService,
   ) {}
 
   async create(dto: CreateTicketDto, user: AuthUser) {
@@ -123,10 +126,15 @@ export class TicketsService {
     );
     const seen = new Map(states.map((s) => [s.ticketId, s.lastSeenAt]));
 
-    return tickets.map((t) => ({
-      ...t,
-      hasUnread: this.isUnread(t.lastActivityAt, t.lastActivityBy, seen.get(t.id), user.userId),
-    }));
+    return tickets.map((t) =>
+      this.hideForUser(
+        this.withSla({
+          ...t,
+          hasUnread: this.isUnread(t.lastActivityAt, t.lastActivityBy, seen.get(t.id), user.userId),
+        }),
+        user,
+      ),
+    );
   }
 
   async detail(id: string, user: AuthUser) {
@@ -134,14 +142,21 @@ export class TicketsService {
     if (!ticket) throw new NotFoundException('Chamado não encontrado');
     this.ensureCanView(ticket.requesterId, user);
     await this.repo.markSeen(user.userId, id);
-    return {
-      ...ticket,
-      attachments: ticket.attachments.map(toAttachmentDto),
-      comments: ticket.comments.map((c) => ({
-        ...c,
-        attachments: c.attachments.map(toAttachmentDto),
-      })),
-    };
+    return this.hideForUser(
+      this.withSla({
+        ...ticket,
+        // Mapeia relacionamentos de usuário p/ UserPublic (NUNCA expor passwordHash).
+        requester: toUserPublic(ticket.requester),
+        assignee: ticket.assignee ? toUserPublic(ticket.assignee) : null,
+        attachments: ticket.attachments.map(toAttachmentDto),
+        comments: ticket.comments.map((c) => ({
+          ...c,
+          author: toUserPublic(c.author),
+          attachments: c.attachments.map(toAttachmentDto),
+        })),
+      }),
+      user,
+    );
   }
 
   async addAttachments(
@@ -215,6 +230,24 @@ export class TicketsService {
     });
   }
 
+  // Encerramento pelo solicitante (ou admin): só a partir de RESOLVED.
+  async close(id: string, rating: number | undefined, user: AuthUser) {
+    const ticket = await this.repo.findById(id);
+    if (!ticket) throw new NotFoundException('Chamado não encontrado');
+    this.ensureCanView(ticket.requesterId, user);
+    if (ticket.status !== 'RESOLVED') {
+      throw new BadRequestException(
+        'Só é possível concluir um chamado já resolvido pela TI',
+      );
+    }
+    return this.repo.closeWithRating({
+      id,
+      fromStatus: ticket.status,
+      changedBy: user.userId,
+      rating: rating ?? null,
+    });
+  }
+
   async assign(id: string, assignedTo: string) {
     const ticket = await this.repo.findById(id);
     if (!ticket) throw new NotFoundException('Chamado não encontrado');
@@ -236,7 +269,32 @@ export class TicketsService {
     if (user.role === 'USER' && (ticket.status === 'RESOLVED' || ticket.status === 'CLOSED')) {
       throw new ForbiddenException('Este chamado foi concluído. Não é possível adicionar comentários.');
     }
-    return this.repo.addComment(id, user.userId, body);
+    const comment = await this.repo.addComment(id, user.userId, body);
+    // NUNCA expor passwordHash do autor no retorno do comentário.
+    return { ...comment, author: toUserPublic(comment.author) };
+  }
+
+  // Anexa o prazo de SLA derivado (nulo enquanto em triagem / sem prioridade).
+  private withSla<T extends { priority: Priority | null; slaStartedAt: Date | null }>(
+    t: T,
+  ): T & { slaHours: number | null; slaDueAt: Date | null } {
+    if (!t.priority || !t.slaStartedAt) {
+      return { ...t, slaHours: null, slaDueAt: null };
+    }
+    return {
+      ...t,
+      slaHours: this.sla.hours(t.priority),
+      slaDueAt: this.sla.dueAt(t.priority, t.slaStartedAt),
+    };
+  }
+
+  // Esconde do USER os campos de cálculo (prioridade/complexidade) e a nota.
+  // SLA derivado (slaHours/slaDueAt) é mantido — é o que o usuário pode ver.
+  private hideForUser<
+    T extends { priority: Priority | null; complexity: Complexity | null; rating: number | null },
+  >(t: T, user: AuthUser): T {
+    if (user.role !== 'USER') return t;
+    return { ...t, priority: null, complexity: null, rating: null };
   }
 
   private isUnread(

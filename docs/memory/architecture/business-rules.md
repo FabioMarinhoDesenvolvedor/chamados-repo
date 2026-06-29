@@ -40,4 +40,24 @@ Recalcular prioridade quando complexity ou departamento mudarem.
   são mesclados em UMA linha do tempo cronológica. No backend continuam separados (sem endpoint novo).
 - **Notificação por não-lido (polling)**: badge no menu + marcador na lista. Regra e tabela
   `ticket_read_state` em architecture/database.md. Ver decisão: decisions/notificacao-polling.
-- Concluir chamado = mudar status para `resolved` (botão ✓ no dashboard e no detalhe).
+- **Encerramento em duas etapas**: a TI marca `RESOLVED` ("Resolvido — aguardando
+  confirmação"); o **solicitante** confirma e avalia, indo para `CLOSED` ("Concluído")
+  via `PATCH /tickets/:id/close` (acessível ao solicitante ou admin; só a partir de
+  RESOLVED). O admin pode forçar `CLOSED` pelo seletor de status (sem avaliação).
+- **Avaliação**: estrelas 1–5, opcional, salva em `tickets.rating`. Visível só ao admin
+  no detalhe do chamado; não entra na timeline pública.
+
+## SLA (prazo de atendimento)
+Centralizado em `SlaService` / `sla.matrix.ts` (DRY). Horas corridas (24/7), contadas a
+partir da triagem (`tickets.sla_started_at`, gravado na saída de TRIAGE). Derivado
+on-the-fly (`slaDueAt = slaStartedAt + horas`), nunca persistido como prazo.
+
+| Prioridade | Prazo |
+|------------|-------|
+| low / medium | 24h |
+| high         | 3h  |
+| urgent       | 1h  |
+
+O **usuário NÃO vê prioridade/complexidade** (escondidas no front), apenas a promessa
+"Prazo de atendimento: até X horas". O **admin** vê "SLA estourado" quando o prazo passa
+sem resolução. STATUS: APROVADA por Fabio em 2026-06-29.

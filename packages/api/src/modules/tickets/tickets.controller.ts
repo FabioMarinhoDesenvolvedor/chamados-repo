@@ -25,6 +25,7 @@ import { UpdateStatusDto } from './dto/update-status.dto';
 import { AssignTicketDto } from './dto/assign-ticket.dto';
 import { AddCommentDto } from './dto/add-comment.dto';
 import { AddAttachmentsDto } from './dto/add-attachments.dto';
+import { CloseTicketDto } from './dto/close-ticket.dto';
 import { TicketQueryDto } from './dto/ticket-query.dto';
 import { MAX_FILES, multerOptions } from './attachments.config';
 
@@ -73,6 +74,15 @@ export class TicketsController {
     return this.tickets.updateStatus(id, dto.status, user);
   }
 
+  @Patch(':id/close')
+  close(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CloseTicketDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.tickets.close(id, dto.rating, user);
+  }
+
   @Patch(':id/assign')
   @Roles('ADMIN')
   assign(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AssignTicketDto) {
@@ -110,6 +120,8 @@ export class TicketsController {
     res.setHeader('Content-Type', file.mime);
     res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.originalName)}"`);
     res.setHeader('Cache-Control', 'private, no-store');
+    // Impede o browser de "adivinhar" o tipo de um arquivo enviado por usuário.
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     res.send(file.data);
   }
 }

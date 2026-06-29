@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AddCommentInput,
   AssignTicketInput,
+  CloseTicketInput,
   CreateTicketInput,
   Ticket,
   TicketAttachment,
@@ -114,6 +115,19 @@ export function useAddComment(id: string) {
       (await api.post(`/tickets/${id}/comments`, input)).data,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['ticket', id] });
+      qc.invalidateQueries({ queryKey: ['unread-count'] });
+    },
+  });
+}
+
+export function useCloseTicket(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: CloseTicketInput) =>
+      (await api.patch(`/tickets/${id}/close`, input)).data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ticket', id] });
+      qc.invalidateQueries({ queryKey: ['tickets'] });
       qc.invalidateQueries({ queryKey: ['unread-count'] });
     },
   });

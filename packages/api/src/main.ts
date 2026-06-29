@@ -1,11 +1,16 @@
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
   const config = app.get(ConfigService);
+
+  // Headers de segurança (nosniff, HSTS, etc.). É uma API JSON, então a CSP
+  // padrão do helmet não atrapalha (não servimos HTML do backend).
+  app.use(helmet());
 
   app.setGlobalPrefix('api');
 
