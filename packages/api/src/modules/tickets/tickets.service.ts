@@ -12,6 +12,7 @@ import { Complexity, Priority, TicketStatus } from '@chamados/shared';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { DepartmentsRepository } from '../departments/departments.repository';
 import { UsersRepository } from '../users/users.repository';
+import { toUserPublic } from '../users/user.mapper';
 import { VaultService } from '../vault/vault.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
@@ -144,9 +145,13 @@ export class TicketsService {
     return this.hideForUser(
       this.withSla({
         ...ticket,
+        // Mapeia relacionamentos de usuário p/ UserPublic (NUNCA expor passwordHash).
+        requester: toUserPublic(ticket.requester),
+        assignee: ticket.assignee ? toUserPublic(ticket.assignee) : null,
         attachments: ticket.attachments.map(toAttachmentDto),
         comments: ticket.comments.map((c) => ({
           ...c,
+          author: toUserPublic(c.author),
           attachments: c.attachments.map(toAttachmentDto),
         })),
       }),
@@ -264,7 +269,9 @@ export class TicketsService {
     if (user.role === 'USER' && (ticket.status === 'RESOLVED' || ticket.status === 'CLOSED')) {
       throw new ForbiddenException('Este chamado foi concluído. Não é possível adicionar comentários.');
     }
-    return this.repo.addComment(id, user.userId, body);
+    const comment = await this.repo.addComment(id, user.userId, body);
+    // NUNCA expor passwordHash do autor no retorno do comentário.
+    return { ...comment, author: toUserPublic(comment.author) };
   }
 
   // Anexa o prazo de SLA derivado (nulo enquanto em triagem / sem prioridade).
