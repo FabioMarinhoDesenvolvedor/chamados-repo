@@ -47,6 +47,12 @@ export interface Ticket {
   createdAt: string;
   updatedAt: string;
   resolvedAt: string | null;
+  rating: number | null;
+  closedAt: string | null;
+  slaStartedAt: string | null;
+  // Derivados (calculados no backend; nulos enquanto em triagem):
+  slaHours: number | null;
+  slaDueAt: string | null;
 }
 
 export interface TicketAttachment {
@@ -135,6 +141,11 @@ export interface AssignTicketInput {
 
 export interface AddCommentInput {
   body: string;
+}
+
+export interface CloseTicketInput {
+  // Avaliação opcional do solicitante (1..5 estrelas).
+  rating?: number;
 }
 
 export interface CreateUserInput {
