@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, ExternalLink } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { Priority, PRIORITIES, Ticket, TicketStatus, TICKET_STATUSES } from '@chamados/shared';
 import { useAuth } from '@/auth/auth-context';
 import { useTickets, useUpdateStatus } from '@/features/tickets/api';
@@ -14,9 +14,6 @@ import { PriorityBarChart } from '@/components/PriorityBarChart';
 import { PRIORITY_LABEL, STATUS_LABEL } from '@/lib/labels';
 
 const DONE: TicketStatus[] = ['RESOLVED', 'CLOSED'];
-
-// Atalho para o sistema EasyLife (XAMPP no mesmo servidor). Ajuste a URL se necessário.
-const EASY_LIFE_URL = 'https://192.42.0.102/';
 
 function ConcludeButton({ ticket }: { ticket: Ticket }) {
   const updateStatus = useUpdateStatus(ticket.id);
@@ -209,18 +206,6 @@ export function DashboardPage() {
           </div>
         </>
       )}
-
-      <div className="mt-2 flex justify-center border-t border-grena/10 pt-6">
-        <a
-          href={EASY_LIFE_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-md bg-grena px-6 py-2.5 text-sm font-semibold text-white shadow-grena transition hover:bg-grena-dark"
-        >
-          <ExternalLink className="h-4 w-4" />
-          EASY LIFE
-        </a>
-      </div>
     </div>
   );
 }

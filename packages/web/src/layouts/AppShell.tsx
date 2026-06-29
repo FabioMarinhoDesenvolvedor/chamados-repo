@@ -12,6 +12,7 @@ import {
   Menu,
   ChevronLeft,
   ChevronRight,
+  ExternalLink,
 } from 'lucide-react';
 import { useAuth } from '@/auth/auth-context';
 import { useUnreadCount } from '@/features/tickets/api';
@@ -36,6 +37,9 @@ const NAV: NavItem[] = [
   { to: '/admin/reports', label: 'Relatórios', icon: FileText, adminOnly: true },
   { to: '/admin/backup', label: 'Backup', icon: Database, adminOnly: true },
 ];
+
+// Atalho para o sistema EasyLife (XAMPP no mesmo servidor). Ajuste a URL se necessário.
+const EASY_LIFE_URL = 'https://192.42.0.102/';
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
@@ -128,6 +132,19 @@ export function AppShell({ children }: { children: ReactNode }) {
         })}
 
         <div className="mt-auto space-y-1 border-t border-white/15 pt-2">
+          <a
+            href={EASY_LIFE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="EASY LIFE"
+            className={cn(
+              'flex min-h-[44px] items-center rounded-md px-3 py-2 text-sm font-medium text-white/85 transition hover:bg-white/10',
+              collapsed ? 'justify-center px-2' : 'justify-start gap-2',
+            )}
+          >
+            <ExternalLink className="h-5 w-5" />
+            {!collapsed && <span>EASY LIFE</span>}
+          </a>
           <Link
             to="/change-password"
             onClick={() => setOpen(false)}
