@@ -5,7 +5,7 @@ const DONE: TicketStatus[] = ['RESOLVED', 'CLOSED'];
 // Texto amigável para o usuário (nunca revela a prioridade/cálculo).
 export function slaText(slaHours: number | null, slaDueAt: string | null): string | null {
   if (slaHours == null || !slaDueAt) return null;
-  const due = new Date(slaDueAt).toLocaleString('pt-BR');
+  const due = new Date(slaDueAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
   return `Prazo de atendimento: até ${slaHours} horas (até ${due})`;
 }
 
