@@ -71,7 +71,7 @@ npm run db:seed:admin -w @chamados/api   # cria SÓ 1 admin (sistema limpo)
 npm run build                            # build de shared + api + web
 ```
 > **Sistema limpo:** nada de chamados/departamentos/usuários de exemplo. Cria apenas o
-> admin `admin@chamados.local` (sem senha definida). Na tela de login use
+> admin `ti@juventus.com.br` (sem senha definida). Na tela de login use
 > **"Primeiro acesso? Defina sua senha"** para definir a senha do admin; depois cadastre
 > departamentos e usuários pela interface.
 > (Para um e-mail de admin diferente: `ADMIN_EMAIL=voce@empresa.local npm run db:seed:admin -w @chamados/api`.)
@@ -108,7 +108,7 @@ sleep 3
 curl -s -o /dev/null -w "site /        -> HTTP %{http_code}\n" http://localhost:8080/
 curl -s -o /dev/null -w "api login     -> HTTP %{http_code}\n" \
   -X POST http://localhost:8080/api/auth/login -H "Content-Type: application/json" \
-  -d '{"email":"admin@chamados.local","password":"senha123"}'
+  -d '{"email":"ti@juventus.com.br","password":"senha123"}'
 echo "--- easyLife (XAMPP) intacto? 80/443/3306 ainda de pé: ---"
 ss -tln | grep -E ':80|:443|:3306'
 ```
@@ -116,7 +116,7 @@ Acesse de outra máquina da rede: **http://192.42.0.102:8080**
 (se houver firewall ativo: `sudo ufw allow 8080/tcp`).
 
 ## Fase 7 — Pós-instalação
-- **Trocar as senhas padrão**: entre como `admin@chamados.local` (senha123) e use
+- **Trocar as senhas padrão**: entre como `ti@juventus.com.br` (senha123) e use
   "Configurações → trocar senha"; idem para o usuário comum.
 - **Acessar o banco** (quando precisar): `sudo -u postgres psql -d chamados`
   ou `PGPASSWORD=... psql -h localhost -U chamados -d chamados`.

@@ -6,7 +6,7 @@ import * as bcrypt from 'bcryptjs';
 // cadastra departamentos/usuários pela interface.
 // E-mail configurável por env ADMIN_EMAIL (default: admin@chamados.local).
 const prisma = new PrismaClient();
-const EMAIL = process.env.ADMIN_EMAIL || 'admin@chamados.local';
+const EMAIL = process.env.ADMIN_EMAIL || 'ti@juventus.com.br';
 
 async function main(): Promise<void> {
   const existing = await prisma.user.findUnique({ where: { email: EMAIL } });

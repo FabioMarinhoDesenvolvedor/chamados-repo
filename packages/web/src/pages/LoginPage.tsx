@@ -13,8 +13,8 @@ export function LoginPage() {
   const { login, firstAccess } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>('login');
-  const [email, setEmail] = useState('admin@chamados.local');
-  const [password, setPassword] = useState('senha123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
