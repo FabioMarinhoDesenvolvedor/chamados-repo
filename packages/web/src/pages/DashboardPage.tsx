@@ -38,14 +38,17 @@ function ConcludeButton({ ticket }: { ticket: Ticket }) {
 export function DashboardPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
-  const [status, setStatus] = useState<TicketStatus | ''>('');
+  // 'ACTIVE' (padrão) = só chamados em aberto/andamento; '' = todos; ou um status específico.
+  const [status, setStatus] = useState<TicketStatus | '' | 'ACTIVE'>('ACTIVE');
   const [priority, setPriority] = useState<Priority | ''>('');
   const { data: tickets, isLoading } = useTickets({
-    status: status || undefined,
+    status: status === 'ACTIVE' || status === '' ? undefined : status,
     priority: priority || undefined,
   });
 
   const all = tickets ?? [];
+  // Visão padrão "limpa": esconde resolvidos/concluídos até o usuário filtrar.
+  const visible = status === 'ACTIVE' ? all.filter((t) => !DONE.includes(t.status)) : all;
   const kpis = {
     triagem: all.filter((t) => t.status === 'TRIAGE').length,
     abertos: all.filter((t) => t.status === 'OPEN' || t.status === 'IN_PROGRESS').length,
@@ -86,7 +89,11 @@ export function DashboardPage() {
 
       <div className="flex flex-col gap-3 sm:flex-row">
         <div className="sm:w-48">
-          <Select value={status} onChange={(e) => setStatus(e.target.value as TicketStatus | '')}>
+          <Select
+            value={status}
+            onChange={(e) => setStatus(e.target.value as TicketStatus | '' | 'ACTIVE')}
+          >
+            <option value="ACTIVE">Em aberto</option>
             <option value="">Todos os status</option>
             {TICKET_STATUSES.map((s) => (
               <option key={s} value={s}>
@@ -111,8 +118,10 @@ export function DashboardPage() {
 
       {isLoading ? (
         <p className="text-gray-500">Carregando...</p>
-      ) : all.length === 0 ? (
-        <Card className="p-8 text-center text-gray-500">Nenhum chamado encontrado.</Card>
+      ) : visible.length === 0 ? (
+        <Card className="p-8 text-center text-gray-500">
+          {status === 'ACTIVE' ? 'Nenhum chamado em aberto.' : 'Nenhum chamado encontrado.'}
+        </Card>
       ) : (
         <>
           <Card className="hidden overflow-hidden md:block">
@@ -127,7 +136,7 @@ export function DashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {all.map((t) => (
+                {visible.map((t) => (
                   <tr key={t.id} className="hover:bg-grena/5">
                     <td className="px-4 py-3">
                       <Link className="font-medium text-grena hover:underline" to={`/tickets/${t.id}`}>

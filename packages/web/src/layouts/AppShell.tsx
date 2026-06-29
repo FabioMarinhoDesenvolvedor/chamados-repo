@@ -57,7 +57,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   function sidebar(showCollapseBtn: boolean) {
     return (
       <nav className="flex h-full flex-col gap-1 bg-grena-gradient p-3 text-white">
-        <div className={cn('mb-6 flex items-center', collapsed ? 'justify-center' : 'justify-between', 'px-1')}>
+        <div className={cn('mb-6 flex px-1', collapsed ? 'flex-col items-center gap-2' : 'items-center justify-between')}>
           {collapsed ? (
             <img
               src="/logo-juventus.png"
@@ -183,19 +183,31 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="md:flex">
         <aside
           className={cn(
-            'hidden shrink-0 md:sticky md:top-0 md:block md:h-screen print:hidden',
+            'hidden shrink-0 overflow-hidden md:sticky md:top-0 md:block md:h-screen print:hidden',
+            'transition-[width] duration-300 ease-in-out',
             collapsed ? 'md:w-16' : 'md:w-64',
           )}
         >
           {sidebar(true)}
         </aside>
 
-        {open && (
-          <div className="fixed inset-0 z-40 md:hidden">
-            <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
-            <aside className="absolute left-0 top-0 h-full w-64 shadow-xl">{sidebar(false)}</aside>
-          </div>
-        )}
+        <div className={cn('fixed inset-0 z-40 md:hidden', !open && 'pointer-events-none')}>
+          <div
+            className={cn(
+              'absolute inset-0 bg-black/40 transition-opacity duration-300',
+              open ? 'opacity-100' : 'opacity-0',
+            )}
+            onClick={() => setOpen(false)}
+          />
+          <aside
+            className={cn(
+              'absolute left-0 top-0 h-full w-64 shadow-xl transition-transform duration-300 ease-in-out',
+              open ? 'translate-x-0' : '-translate-x-full',
+            )}
+          >
+            {sidebar(false)}
+          </aside>
+        </div>
 
         <main className="flex-1 p-4 md:p-8">
           {user && <VaultBanner isAdmin={user.role === 'ADMIN'} />}
