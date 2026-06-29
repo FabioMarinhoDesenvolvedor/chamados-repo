@@ -84,6 +84,9 @@ model Ticket {
   createdAt    DateTime     @default(now()) @map("created_at")
   updatedAt    DateTime     @updatedAt @map("updated_at")
   resolvedAt   DateTime?    @map("resolved_at")
+  closedAt     DateTime?    @map("closed_at")
+  slaStartedAt DateTime?    @map("sla_started_at")
+  rating       Int?
 
   lastActivityAt DateTime @default(now()) @map("last_activity_at")
   lastActivityBy String?  @map("last_activity_by")
