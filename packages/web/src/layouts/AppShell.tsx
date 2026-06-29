@@ -72,7 +72,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 className="h-11 w-11 shrink-0 rounded-full bg-white/90 object-contain p-0.5"
               />
               <div>
-                <h1 className="text-sm font-bold leading-tight">Chamados</h1>
+                <h1 className="text-sm font-bold leading-tight">Service Desk</h1>
                 <p className="text-[11px] leading-tight text-white/70">Clube Atlético Juventus</p>
                 {user && (
                   <p className="mt-1 text-xs text-white/70">
@@ -169,7 +169,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             alt="Clube Atlético Juventus"
             className="h-7 w-7 rounded-full bg-white/90 object-contain p-0.5"
           />
-          Chamados
+          Service Desk
         </span>
         <span className="relative w-6 text-right">
           {(unread?.count ?? 0) > 0 && (

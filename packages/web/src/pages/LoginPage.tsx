@@ -73,7 +73,7 @@ export function LoginPage() {
             alt="Clube Atlético Juventus"
             className="mb-3 h-20 w-20 object-contain"
           />
-          <h1 className="text-lg font-bold text-grena">CHAMADOS</h1>
+          <h1 className="text-lg font-bold text-grena">SERVICE DESK</h1>
           <p className="text-sm font-medium text-grena-dark">Clube Atlético Juventus</p>
           <p className="mt-2 text-sm text-gray-500">
             {isFirst ? 'Primeiro acesso: defina sua senha' : 'Acesse com suas credenciais'}
