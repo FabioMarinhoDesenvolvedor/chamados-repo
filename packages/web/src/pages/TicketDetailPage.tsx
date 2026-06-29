@@ -11,11 +11,14 @@ import { useAuth } from '@/auth/auth-context';
 import {
   useAddComment,
   useAssignTicket,
+  useCloseTicket,
   useTicket,
   useUpdateStatus,
   useUpdateTicket,
   useUploadAttachments,
 } from '@/features/tickets/api';
+import { StarRating } from '@/components/StarRating';
+import { slaText, isSlaBreached } from '@/lib/sla';
 import { useUsers } from '@/features/users/api';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -45,11 +48,16 @@ export function TicketDetailPage() {
   const addComment = useAddComment(id);
   const uploadAttachments = useUploadAttachments();
   const { data: allUsers } = useUsers(isAdmin);
+  const closeTicket = useCloseTicket(id);
+  const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [commentFiles, setCommentFiles] = useState<File[]>([]);
 
   if (isLoading) return <p className="text-gray-500">Carregando...</p>;
   if (!ticket) return <p className="text-gray-500">Chamado não encontrado.</p>;
+
+  const sla = slaText(ticket.slaHours, ticket.slaDueAt);
+  const breached = isSlaBreached(ticket.slaDueAt, ticket.status);
 
   const adminUsers = allUsers?.filter((u) => u.role === 'ADMIN') ?? [];
 
@@ -87,12 +95,22 @@ export function TicketDetailPage() {
       <div>
         <h2 className="text-2xl font-bold text-grena-dark">{ticket.title}</h2>
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <PriorityBadge priority={ticket.priority} />
+          {isAdmin && <PriorityBadge priority={ticket.priority} />}
           <StatusBadge status={ticket.status} />
-          <span className="text-xs text-gray-500">
-            Complexidade: {complexityLabel(ticket.complexity)}
-          </span>
+          {isAdmin && (
+            <span className="text-xs text-gray-500">
+              Complexidade: {complexityLabel(ticket.complexity)}
+            </span>
+          )}
         </div>
+        {sla ? (
+          <p className={`mt-2 text-sm ${breached && isAdmin ? 'font-medium text-red-600' : 'text-grena'}`}>
+            ⏱ {sla}
+            {breached && isAdmin && ' — SLA estourado'}
+          </p>
+        ) : (
+          <p className="mt-2 text-sm text-gray-500">Em análise — prazo definido após a triagem.</p>
+        )}
       </div>
 
       <Card className="p-6">
@@ -192,11 +210,40 @@ export function TicketDetailPage() {
                   disabled={updateStatus.isPending}
                   onClick={() => updateStatus.mutate({ status: 'RESOLVED' })}
                 >
-                  ✓ Concluir chamado
+                  ✓ Marcar como resolvido
                 </Button>
               )}
             </div>
+            {ticket.status === 'CLOSED' && (
+              <div className="sm:col-span-2">
+                <Label>Avaliação do solicitante</Label>
+                {ticket.rating ? (
+                  <StarRating value={ticket.rating} readOnly />
+                ) : (
+                  <p className="text-sm text-gray-500">Sem avaliação.</p>
+                )}
+              </div>
+            )}
           </div>
+        </Card>
+      )}
+
+      {!isAdmin && ticket.status === 'RESOLVED' && (
+        <Card className="p-6">
+          <h3 className="mb-1 text-sm font-semibold text-grena">Confirmar conclusão</h3>
+          <p className="mb-4 text-sm text-gray-600">
+            A TI marcou seu chamado como resolvido. Avalie o atendimento (opcional) e conclua.
+          </p>
+          <div className="mb-4">
+            <Label>Sua avaliação</Label>
+            <StarRating value={rating} onChange={setRating} />
+          </div>
+          <Button
+            disabled={closeTicket.isPending}
+            onClick={() => closeTicket.mutate({ rating: rating || undefined })}
+          >
+            {closeTicket.isPending ? 'Concluindo...' : 'Concluir chamado'}
+          </Button>
         </Card>
       )}
 
