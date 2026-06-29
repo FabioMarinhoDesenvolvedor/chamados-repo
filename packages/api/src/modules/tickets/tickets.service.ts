@@ -13,7 +13,6 @@ import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { DepartmentsRepository } from '../departments/departments.repository';
 import { UsersRepository } from '../users/users.repository';
 import { toUserPublic } from '../users/user.mapper';
-import { VaultService } from '../vault/vault.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
 import { TicketQueryDto } from './dto/ticket-query.dto';
@@ -54,7 +53,6 @@ export class TicketsService {
     private readonly departments: DepartmentsRepository,
     private readonly users: UsersRepository,
     private readonly priority: PriorityService,
-    private readonly vault: VaultService,
     private readonly sla: SlaService,
   ) {}
 
@@ -170,9 +168,6 @@ export class TicketsService {
     this.ensureCanView(ticket.requesterId, user);
     if (files.length === 0) return [];
 
-    // Exige cofre desbloqueado ANTES de gravar qualquer coisa (falha cedo com 423).
-    this.vault.assertUnlocked();
-
     if (commentId) {
       const comment = await this.repo.findComment(commentId);
       if (!comment || comment.ticketId !== ticketId) {
@@ -183,9 +178,9 @@ export class TicketsService {
     ensureAttachmentsDir();
     const dir = attachmentsDir();
     const items = files.map((f) => {
-      const filename = `${randomUUID()}.enc`;
-      // Cifra o conteúdo em memória e grava só o ciphertext no disco externo.
-      writeFileSync(join(dir, filename), this.vault.encrypt(f.buffer));
+      const filename = randomUUID();
+      // Grava o arquivo como está (sem criptografia). Acesso é protegido pelo endpoint.
+      writeFileSync(join(dir, filename), f.buffer);
       return { filename, originalName: f.originalname, mime: f.mimetype, size: f.size };
     });
 
@@ -193,7 +188,7 @@ export class TicketsService {
     return created.map(toAttachmentDto);
   }
 
-  // Lê o anexo cifrado do disco externo e devolve o conteúdo em claro (requer acesso + cofre aberto).
+  // Lê o anexo do disco externo e devolve o conteúdo (acesso protegido por ensureCanView).
   async getAttachmentFile(ticketId: string, attachmentId: string, user: AuthUser) {
     const attachment = await this.repo.findAttachment(attachmentId);
     if (!attachment || attachment.ticketId !== ticketId) {
@@ -205,7 +200,7 @@ export class TicketsService {
 
     const path = join(attachmentsDir(), attachment.filename);
     if (!existsSync(path)) throw new NotFoundException('Arquivo do anexo não encontrado');
-    const data = this.vault.decrypt(readFileSync(path));
+    const data = readFileSync(path);
     return { data, mime: attachment.mime, originalName: attachment.originalName };
   }
 

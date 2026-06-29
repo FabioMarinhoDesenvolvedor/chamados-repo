@@ -8,7 +8,6 @@ import { UsersModule } from './modules/users/users.module';
 import { DepartmentsModule } from './modules/departments/departments.module';
 import { TicketsModule } from './modules/tickets/tickets.module';
 import { ReportsModule } from './modules/reports/reports.module';
-import { VaultModule } from './modules/vault/vault.module';
 import { BackupModule } from './modules/backup/backup.module';
 
 @Module({
@@ -23,7 +22,6 @@ import { BackupModule } from './modules/backup/backup.module';
     DepartmentsModule,
     TicketsModule,
     ReportsModule,
-    VaultModule,
     BackupModule,
   ],
 })

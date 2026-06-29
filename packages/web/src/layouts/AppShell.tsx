@@ -16,7 +16,7 @@ import {
 import { useAuth } from '@/auth/auth-context';
 import { useUnreadCount } from '@/features/tickets/api';
 import { Button } from '@/components/ui/button';
-import { VaultBanner } from '@/components/VaultBanner';
+import { TipsToaster } from '@/components/TipsToaster';
 import { ROLE_LABEL } from '@/lib/labels';
 import { cn } from '@/lib/cn';
 
@@ -210,10 +210,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
 
         <main className="flex-1 p-4 md:p-8">
-          {user && <VaultBanner isAdmin={user.role === 'ADMIN'} />}
           {children}
         </main>
       </div>
+
+      {user?.role === 'USER' && <TipsToaster />}
     </div>
   );
 }
