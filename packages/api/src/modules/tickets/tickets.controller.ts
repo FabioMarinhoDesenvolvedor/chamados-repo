@@ -120,6 +120,8 @@ export class TicketsController {
     res.setHeader('Content-Type', file.mime);
     res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.originalName)}"`);
     res.setHeader('Cache-Control', 'private, no-store');
+    // Impede o browser de "adivinhar" o tipo de um arquivo enviado por usuário.
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     res.send(file.data);
   }
 }
