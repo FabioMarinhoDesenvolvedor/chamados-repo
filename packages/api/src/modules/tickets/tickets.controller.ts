@@ -25,6 +25,7 @@ import { UpdateStatusDto } from './dto/update-status.dto';
 import { AssignTicketDto } from './dto/assign-ticket.dto';
 import { AddCommentDto } from './dto/add-comment.dto';
 import { AddAttachmentsDto } from './dto/add-attachments.dto';
+import { CloseTicketDto } from './dto/close-ticket.dto';
 import { TicketQueryDto } from './dto/ticket-query.dto';
 import { MAX_FILES, multerOptions } from './attachments.config';
 
@@ -71,6 +72,15 @@ export class TicketsController {
     @CurrentUser() user: AuthUser,
   ) {
     return this.tickets.updateStatus(id, dto.status, user);
+  }
+
+  @Patch(':id/close')
+  close(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CloseTicketDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.tickets.close(id, dto.rating, user);
   }
 
   @Patch(':id/assign')

@@ -219,6 +219,24 @@ export class TicketsService {
     });
   }
 
+  // Encerramento pelo solicitante (ou admin): só a partir de RESOLVED.
+  async close(id: string, rating: number | undefined, user: AuthUser) {
+    const ticket = await this.repo.findById(id);
+    if (!ticket) throw new NotFoundException('Chamado não encontrado');
+    this.ensureCanView(ticket.requesterId, user);
+    if (ticket.status !== 'RESOLVED') {
+      throw new BadRequestException(
+        'Só é possível concluir um chamado já resolvido pela TI',
+      );
+    }
+    return this.repo.closeWithRating({
+      id,
+      fromStatus: ticket.status,
+      changedBy: user.userId,
+      rating: rating ?? null,
+    });
+  }
+
   async assign(id: string, assignedTo: string) {
     const ticket = await this.repo.findById(id);
     if (!ticket) throw new NotFoundException('Chamado não encontrado');

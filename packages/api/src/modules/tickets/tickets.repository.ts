@@ -114,6 +114,35 @@ export class TicketsRepository {
     });
   }
 
+  closeWithRating(input: {
+    id: string;
+    fromStatus: TicketStatus;
+    changedBy: string;
+    rating: number | null;
+  }) {
+    return this.prisma.$transaction(async (tx) => {
+      const ticket = await tx.ticket.update({
+        where: { id: input.id },
+        data: {
+          status: 'CLOSED',
+          closedAt: new Date(),
+          rating: input.rating,
+          lastActivityAt: new Date(),
+          lastActivityBy: input.changedBy,
+        },
+      });
+      await tx.ticketStatusHistory.create({
+        data: {
+          ticketId: input.id,
+          fromStatus: input.fromStatus,
+          toStatus: 'CLOSED',
+          changedBy: input.changedBy,
+        },
+      });
+      return ticket;
+    });
+  }
+
   applyTriage(input: {
     id: string;
     complexity: Complexity | null;
