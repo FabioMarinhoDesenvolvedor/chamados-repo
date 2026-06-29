@@ -38,8 +38,8 @@ const NAV: NavItem[] = [
   { to: '/admin/backup', label: 'Backup', icon: Database, adminOnly: true },
 ];
 
-// Atalho para o sistema EasyLife (XAMPP no mesmo servidor). Ajuste a URL se necessário.
-const EASY_LIFE_URL = 'https://192.42.0.102/';
+
+const EASY_LIFE_URL = 'http://192.42.0.102/';
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
@@ -60,7 +60,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   function sidebar(showCollapseBtn: boolean) {
     return (
-      <nav className="flex h-full flex-col gap-1 bg-grena-gradient p-3 text-white">
+      <nav className="flex flex-col h-full gap-1 p-3 text-white bg-grena-gradient">
         <div className={cn('mb-6 flex px-1', collapsed ? 'flex-col items-center gap-2' : 'items-center justify-between')}>
           {collapsed ? (
             <img
@@ -90,9 +90,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             <button
               aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
               onClick={toggleCollapsed}
-              className="hidden rounded-md p-2 text-white/80 hover:bg-white/10 md:block"
+              className="hidden p-2 rounded-md text-white/80 hover:bg-white/10 md:block"
             >
-              {collapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+              {collapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
             </button>
           )}
         </div>
@@ -114,7 +114,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               )}
             >
               <span className="relative leading-none">
-                <Icon className="h-5 w-5" />
+                <Icon className="w-5 h-5" />
                 {showBadge && collapsed && (
                   <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-white px-1 text-[10px] font-bold text-grena">
                     {unread!.count}
@@ -131,7 +131,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           );
         })}
 
-        <div className="mt-auto space-y-1 border-t border-white/15 pt-2">
+        <div className="pt-2 mt-auto space-y-1 border-t border-white/15">
           <a
             href={EASY_LIFE_URL}
             target="_blank"
@@ -142,7 +142,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               collapsed ? 'justify-center px-2' : 'justify-start gap-2',
             )}
           >
-            <ExternalLink className="h-5 w-5" />
+            <ExternalLink className="w-5 h-5" />
             {!collapsed && <span>EASY LIFE</span>}
           </a>
           <Link
@@ -157,7 +157,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 : 'text-white/85 hover:bg-white/10',
             )}
           >
-            <Settings className="h-5 w-5" />
+            <Settings className="w-5 h-5" />
             {!collapsed && <span>Configurações</span>}
           </Link>
           <Button
@@ -166,7 +166,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             onClick={logout}
             title="Sair"
           >
-            <LogOut className="h-5 w-5" />
+            <LogOut className="w-5 h-5" />
             {!collapsed && <span className="ml-2">Sair</span>}
           </Button>
         </div>
@@ -176,9 +176,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-surface">
-      <header className="flex items-center justify-between border-b border-grena/10 bg-grena-gradient px-4 py-3 text-white md:hidden print:hidden">
+      <header className="flex items-center justify-between px-4 py-3 text-white border-b border-grena/10 bg-grena-gradient md:hidden print:hidden">
         <button aria-label="Abrir menu" onClick={() => setOpen(true)}>
-          <Menu className="h-6 w-6" />
+          <Menu className="w-6 h-6" />
         </button>
         <span className="flex items-center gap-2 font-bold">
           <img
