@@ -1,75 +1,109 @@
-import { MouseEvent, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, RotateCcw } from 'lucide-react';
 import {
-  Priority,
-  PRIORITIES,
   Ticket,
   TicketStatus,
   TICKET_STATUSES,
+  UserPublic,
   isStaffRole,
 } from '@chamados/shared';
 import { useAuth } from '@/auth/auth-context';
-import { useTickets, useUpdateStatus } from '@/features/tickets/api';
+import { useAssignTicket, useTickets, useUpdateStatus } from '@/features/tickets/api';
+import { useUsers } from '@/features/users/api';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
-import { PriorityBadge } from '@/components/PriorityBadge';
 import { StatusBadge } from '@/components/StatusBadge';
 import { KpiCard } from '@/components/KpiCard';
-import { PriorityBarChart } from '@/components/PriorityBarChart';
-import { PRIORITY_LABEL, STATUS_LABEL } from '@/lib/labels';
+import { STATUS_LABEL } from '@/lib/labels';
 
 const DONE: TicketStatus[] = ['RESOLVED', 'CLOSED'];
+// Status que dá para definir rápido pelo dashboard (resolver coisas simples sem abrir o chamado).
+const QUICK_STATUSES: TicketStatus[] = ['TRIAGE', 'IN_PROGRESS', 'RESOLVED'];
 
-// Alterna o chamado entre "em andamento" e "resolvido" direto da lista (só staff).
-// CLOSED é terminal e TRIAGE precisa de triagem antes — nesses casos não há ação rápida.
-function StatusToggleButton({ ticket }: { ticket: Ticket }) {
+// Ações de atendimento direto na lista (só staff): mudar status e definir responsável.
+function TicketActions({
+  ticket,
+  isAdmin,
+  staffUsers,
+  currentUserId,
+}: {
+  ticket: Ticket;
+  isAdmin: boolean;
+  staffUsers: UserPublic[];
+  currentUserId?: string;
+}) {
   const updateStatus = useUpdateStatus(ticket.id);
-  const toggle = (status: TicketStatus) => (e: MouseEvent) => {
-    e.preventDefault();
-    updateStatus.mutate({ status });
-  };
+  const assignTicket = useAssignTicket(ticket.id);
+  // Garante que o status atual apareça no seletor mesmo se não for um dos "rápidos" (ex.: OPEN/CLOSED).
+  const statusOptions = QUICK_STATUSES.includes(ticket.status)
+    ? QUICK_STATUSES
+    : [ticket.status, ...QUICK_STATUSES];
+  const busy = updateStatus.isPending || assignTicket.isPending;
 
-  if (ticket.status === 'RESOLVED') {
-    return (
-      <Button
-        variant="secondary"
-        className="min-h-0 px-2 py-1 text-xs"
-        loading={updateStatus.isPending}
-        onClick={toggle('IN_PROGRESS')}
+  return (
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+      <Select
+        aria-label="Alterar status"
+        className="min-h-0 py-1 text-xs"
+        value={ticket.status}
+        disabled={busy}
+        onChange={(e) => updateStatus.mutate({ status: e.target.value as TicketStatus })}
       >
-        <RotateCcw className="mr-1 h-4 w-4" /> Reabrir
-      </Button>
-    );
-  }
-  if (ticket.status === 'OPEN' || ticket.status === 'IN_PROGRESS') {
-    return (
-      <Button
-        variant="secondary"
-        className="min-h-0 px-2 py-1 text-xs"
-        loading={updateStatus.isPending}
-        onClick={toggle('RESOLVED')}
-      >
-        <Check className="mr-1 h-4 w-4" /> Resolver
-      </Button>
-    );
-  }
-  return <span className="text-xs text-gray-400">—</span>;
+        {statusOptions.map((s) => (
+          <option key={s} value={s}>
+            {STATUS_LABEL[s]}
+          </option>
+        ))}
+      </Select>
+      {isAdmin ? (
+        <Select
+          aria-label="Definir responsável"
+          className="min-h-0 py-1 text-xs"
+          value={ticket.assignedTo ?? ''}
+          disabled={busy}
+          onChange={(e) => e.target.value && assignTicket.mutate({ assignedTo: e.target.value })}
+        >
+          <option value="" disabled>
+            Responsável...
+          </option>
+          {staffUsers.map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.name}
+            </option>
+          ))}
+        </Select>
+      ) : ticket.assignedTo === currentUserId ? (
+        <span className="text-xs text-gray-500">Você é o responsável</span>
+      ) : (
+        // OPERATOR só pode assumir o chamado para si.
+        <Button
+          variant="secondary"
+          className="min-h-0 px-2 py-1 text-xs"
+          loading={assignTicket.isPending}
+          onClick={() => currentUserId && assignTicket.mutate({ assignedTo: currentUserId })}
+        >
+          Assumir
+        </Button>
+      )}
+    </div>
+  );
 }
 
 export function DashboardPage() {
   const { user } = useAuth();
-  // Staff (ADMIN/OPERATOR): vê prioridade, KPIs e ações de atendimento.
+  // Staff (ADMIN/OPERATOR): vê KPIs e ações de atendimento.
   const isStaff = user ? isStaffRole(user.role) : false;
+  const isAdmin = user?.role === 'ADMIN';
+  // Lista de responsáveis possíveis (equipe) p/ o admin atribuir pela lista. OPERATOR só assume p/ si.
+  const { data: allUsers } = useUsers(isAdmin);
+  const staffUsers = allUsers?.filter((u) => isStaffRole(u.role)) ?? [];
   // OPERATOR não abre chamados (só atende); USER e ADMIN sim.
   const canCreate = user?.role !== 'OPERATOR';
   // 'ACTIVE' (padrão) = só chamados em aberto/andamento; '' = todos; ou um status específico.
   const [status, setStatus] = useState<TicketStatus | '' | 'ACTIVE'>('ACTIVE');
-  const [priority, setPriority] = useState<Priority | ''>('');
   const { data: tickets, isLoading } = useTickets({
     status: status === 'ACTIVE' || status === '' ? undefined : status,
-    priority: priority || undefined,
   });
 
   const all = tickets ?? [];
@@ -78,13 +112,8 @@ export function DashboardPage() {
   const kpis = {
     triagem: all.filter((t) => t.status === 'TRIAGE').length,
     abertos: all.filter((t) => t.status === 'OPEN' || t.status === 'IN_PROGRESS').length,
-    urgentes: all.filter((t) => t.priority === 'URGENT').length,
     resolvidos: all.filter((t) => DONE.includes(t.status)).length,
   };
-  const counts = PRIORITIES.reduce(
-    (acc, p) => ({ ...acc, [p]: all.filter((t) => t.priority === p).length }),
-    {} as Record<Priority, number>,
-  );
 
   return (
     <div className="space-y-6">
@@ -104,15 +133,11 @@ export function DashboardPage() {
       </div>
 
       {isStaff && (
-        <>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <KpiCard label="Em triagem" value={kpis.triagem} />
-            <KpiCard label="Abertos" value={kpis.abertos} />
-            <KpiCard label="Urgentes" value={kpis.urgentes} highlight />
-            <KpiCard label="Resolvidos" value={kpis.resolvidos} />
-          </div>
-          <PriorityBarChart counts={counts} />
-        </>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+          <KpiCard label="Em triagem" value={kpis.triagem} />
+          <KpiCard label="Abertos" value={kpis.abertos} />
+          <KpiCard label="Resolvidos" value={kpis.resolvidos} />
+        </div>
       )}
 
       <div className="flex flex-col gap-3 sm:flex-row">
@@ -130,18 +155,6 @@ export function DashboardPage() {
             ))}
           </Select>
         </div>
-        {isStaff && (
-          <div className="sm:w-48">
-            <Select value={priority} onChange={(e) => setPriority(e.target.value as Priority | '')}>
-              <option value="">Todas as prioridades</option>
-              {PRIORITIES.map((p) => (
-                <option key={p} value={p}>
-                  {PRIORITY_LABEL[p]}
-                </option>
-              ))}
-            </Select>
-          </div>
-        )}
       </div>
 
       {isLoading ? (
@@ -157,7 +170,7 @@ export function DashboardPage() {
               <thead className="bg-grena/5 text-left text-xs uppercase text-grena">
                 <tr>
                   <th className="px-4 py-3">Título</th>
-                  <th className="px-4 py-3">{isStaff ? 'Prioridade' : 'Prazo'}</th>
+                  <th className="px-4 py-3">Prazo</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Aberto em</th>
                   {isStaff && <th className="px-4 py-3">Ação</th>}
@@ -175,13 +188,9 @@ export function DashboardPage() {
                       </Link>
                     </td>
                     <td className="px-4 py-3">
-                      {isStaff ? (
-                        <PriorityBadge priority={t.priority} />
-                      ) : (
-                        <span className="text-xs text-gray-500">
-                          {t.slaHours != null ? `até ${t.slaHours}h` : 'Em triagem'}
-                        </span>
-                      )}
+                      <span className="text-xs text-gray-500">
+                        {t.slaHours != null ? `até ${t.slaHours}h` : 'Em triagem'}
+                      </span>
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={t.status} />
@@ -191,7 +200,12 @@ export function DashboardPage() {
                     </td>
                     {isStaff && (
                       <td className="px-4 py-3">
-                        <StatusToggleButton ticket={t} />
+                        <TicketActions
+                          ticket={t}
+                          isAdmin={isAdmin}
+                          staffUsers={staffUsers}
+                          currentUserId={user?.id}
+                        />
                       </td>
                     )}
                   </tr>
@@ -211,13 +225,9 @@ export function DashboardPage() {
                     {t.title}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    {isStaff ? (
-                      <PriorityBadge priority={t.priority} />
-                    ) : (
-                      <span className="text-xs text-gray-500">
-                        {t.slaHours != null ? `Prazo: até ${t.slaHours}h` : 'Em triagem'}
-                      </span>
-                    )}
+                    <span className="text-xs text-gray-500">
+                      {t.slaHours != null ? `Prazo: até ${t.slaHours}h` : 'Em triagem'}
+                    </span>
                     <StatusBadge status={t.status} />
                     <span className="ml-auto text-xs text-gray-500">
                       {new Date(t.createdAt).toLocaleDateString('pt-BR')}
@@ -226,7 +236,12 @@ export function DashboardPage() {
                 </Link>
                 {isStaff && (
                   <div className="mt-3">
-                    <StatusToggleButton ticket={t} />
+                    <TicketActions
+                      ticket={t}
+                      isAdmin={isAdmin}
+                      staffUsers={staffUsers}
+                      currentUserId={user?.id}
+                    />
                   </div>
                 )}
               </Card>

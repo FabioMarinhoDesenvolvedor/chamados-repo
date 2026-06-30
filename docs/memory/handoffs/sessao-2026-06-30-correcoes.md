@@ -20,15 +20,22 @@
   (`tickets.service.ts`), igual ao detalhe — antes retornava o registro cru.
 - Verificado (puppeteer): trocar complexidade Alta→Crítica → badge "Alta" → "Urgente" em
   ~250ms, sem refresh.
+- **Decisão final do Fabio**: o badge de PRIORIDADE confundia (mostra a prioridade derivada,
+  ex.: "Baixa", ao lado da complexidade "Média") → **removido** do detalhe e do dashboard
+  (badge, coluna "Prioridade"→"Prazo", filtro de prioridade, KPI "Urgentes" e gráfico de
+  prioridade). Prioridade segue existindo internamente (dirige o SLA/"Prazo").
 
 ### 2. Controle de status unificado
 - Removido o botão "✓ Marcar como resolvido" do detalhe; resolver agora é via o ÚNICO
   seletor "Alterar status". `TicketDetailPage.tsx`.
 
-### 3. Dashboard: toggle resolvido ↔ andamento (staff)
-- `ConcludeButton` → `StatusToggleButton`: `RESOLVED` mostra "Reabrir" (→IN_PROGRESS);
-  `OPEN`/`IN_PROGRESS` mostram "Resolver" (→RESOLVED); `TRIAGE`/`CLOSED` = "—".
-- Já restrito a `isStaff`; backend já valida `@Roles(ADMIN,OPERATOR)`. `DashboardPage.tsx`.
+### 3. Dashboard: ações de atendimento na lista (staff)
+- Coluna "Ação" agora é um `TicketActions`: **seletor de status** (`TRIAGE`/`IN_PROGRESS`/
+  `RESOLVED` + status atual) p/ resolver/triar coisas simples sem abrir o chamado, e
+  **definição de responsável** (admin: select da equipe; OPERATOR: botão "Assumir" p/ si).
+  (Evoluiu do toggle "Resolver/Reabrir" inicial a pedido do usuário.)
+- Já restrito a `isStaff`; backend valida `@Roles(ADMIN,OPERATOR)` + assign (OPERATOR só p/ si).
+  `DashboardPage.tsx`.
 
 ### 4. Bloquear comentário em RESOLVED e CLOSED (front + back)
 - **Back** (`tickets.service.ts addComment`): rejeita p/ QUALQUER papel (inclui admin)
