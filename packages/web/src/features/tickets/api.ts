@@ -111,8 +111,17 @@ export function useAssignTicket(id: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: AssignTicketInput) =>
-      (await api.patch(`/tickets/${id}/assign`, input)).data,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['ticket', id] }),
+      (await api.patch<Ticket>(`/tickets/${id}/assign`, input)).data,
+    onSuccess: (updated) => {
+      // Reflete o novo responsável na hora: na lista do dashboard e no detalhe (sem esperar
+      // o refetch — antes só atualizava ao sair e voltar da página).
+      qc.setQueriesData<Ticket[]>({ queryKey: ['tickets'] }, (old) =>
+        old?.map((t) => (t.id === id ? { ...t, ...updated } : t)),
+      );
+      qc.setQueryData<TicketDetail>(['ticket', id], (old) => (old ? { ...old, ...updated } : old));
+      qc.invalidateQueries({ queryKey: ['ticket', id] });
+      qc.invalidateQueries({ queryKey: ['tickets'] });
+    },
     meta: { successMessage: 'Responsável definido' },
   });
 }

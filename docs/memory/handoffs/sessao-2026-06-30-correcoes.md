@@ -36,6 +36,9 @@
   (Evoluiu do toggle "Resolver/Reabrir" inicial a pedido do usuário.)
 - Já restrito a `isStaff`; backend valida `@Roles(ADMIN,OPERATOR)` + assign (OPERATOR só p/ si).
   `DashboardPage.tsx`.
+- `useAssignTicket` passou a aplicar a resposta no cache (`setQueriesData` em `['tickets']` +
+  `setQueryData` no detalhe) e invalidar `['tickets']` — antes o nome do responsável só
+  atualizava ao sair e voltar da página (mesma classe do bug do badge).
 
 ### 4. Bloquear comentário em RESOLVED e CLOSED (front + back)
 - **Back** (`tickets.service.ts addComment`): rejeita p/ QUALQUER papel (inclui admin)
