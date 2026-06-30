@@ -25,7 +25,6 @@ import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { PriorityBadge } from '@/components/PriorityBadge';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Spinner } from '@/components/ui/spinner';
 import { AttachmentGallery } from '@/components/AttachmentGallery';
@@ -108,7 +107,6 @@ export function TicketDetailPage() {
       <div>
         <h2 className="text-2xl font-bold text-grena-dark">{ticket.title}</h2>
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          {isStaff && <PriorityBadge priority={ticket.priority} />}
           <StatusBadge status={ticket.status} />
           {isStaff && (
             <span className="text-xs text-gray-500">
