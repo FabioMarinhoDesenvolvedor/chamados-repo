@@ -15,6 +15,7 @@ export function useCreateDepartment() {
     mutationFn: async (input: CreateDepartmentInput) =>
       (await api.post<Department>('/departments', input)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['departments'] }),
+    meta: { successMessage: 'Departamento criado' },
   });
 }
 
@@ -23,5 +24,6 @@ export function useDeleteDepartment() {
   return useMutation({
     mutationFn: async (id: string) => (await api.delete(`/departments/${id}`)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['departments'] }),
+    meta: { successMessage: 'Departamento removido' },
   });
 }

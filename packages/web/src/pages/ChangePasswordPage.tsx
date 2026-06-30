@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { isStrongPassword, PASSWORD_MIN_LENGTH, PASSWORD_RULE_MESSAGE } from '@chamados/shared';
 import { useAuth } from '@/auth/auth-context';
 import { api, apiMessage } from '@/lib/api';
+import { toast } from '@/lib/toast-store';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -35,6 +36,7 @@ export function ChangePasswordPage() {
       await api.post('/users/me/password', { currentPassword, newPassword });
       await refreshUser();
       setDone(true);
+      toast.success('Senha alterada');
       if (forced) {
         navigate('/');
       }
@@ -103,7 +105,7 @@ export function ChangePasswordPage() {
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex gap-3">
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" loading={saving}>
               {saving ? 'Salvando...' : 'Salvar nova senha'}
             </Button>
             {!forced && (

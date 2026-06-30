@@ -164,7 +164,7 @@ export function UsersPage() {
             </Select>
           </div>
           <div className="flex items-end">
-            <Button type="submit" disabled={createUser.isPending}>
+            <Button type="submit" loading={createUser.isPending}>
               {createUser.isPending ? 'Salvando...' : 'Criar usuário'}
             </Button>
           </div>
@@ -275,7 +275,7 @@ export function UsersPage() {
               </Select>
             </div>
             <div className="flex items-end gap-3">
-              <Button type="submit" disabled={updateUser.isPending}>
+              <Button type="submit" loading={updateUser.isPending}>
                 {updateUser.isPending ? 'Salvando...' : 'Salvar'}
               </Button>
               <Button type="button" variant="secondary" onClick={() => setEditingId(null)}>

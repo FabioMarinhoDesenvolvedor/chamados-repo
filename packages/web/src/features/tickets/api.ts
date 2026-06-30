@@ -50,6 +50,7 @@ export function useCreateTicket() {
     mutationFn: async (input: CreateTicketInput) =>
       (await api.post<Ticket>('/tickets', input)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tickets'] }),
+    meta: { successMessage: 'Chamado aberto' },
   });
 }
 
@@ -78,11 +79,15 @@ export function useUpdateTicket(id: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: UpdateTicketInput) =>
-      (await api.patch(`/tickets/${id}`, input)).data,
-    onSuccess: () => {
+      (await api.patch<Ticket>(`/tickets/${id}`, input)).data,
+    onSuccess: (updated) => {
+      // Aplica a resposta já projetada no cache do detalhe na hora: o badge de prioridade
+      // reflete o novo valor imediatamente, sem depender do timing do refetch.
+      qc.setQueryData<TicketDetail>(['ticket', id], (old) => (old ? { ...old, ...updated } : old));
       qc.invalidateQueries({ queryKey: ['ticket', id] });
       qc.invalidateQueries({ queryKey: ['tickets'] });
     },
+    meta: { successMessage: 'Chamado atualizado' },
   });
 }
 
@@ -90,12 +95,15 @@ export function useUpdateStatus(id: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: UpdateTicketStatusInput) =>
-      (await api.patch(`/tickets/${id}/status`, input)).data,
-    onSuccess: () => {
+      (await api.patch<Ticket>(`/tickets/${id}/status`, input)).data,
+    onSuccess: (updated) => {
+      // Reflete status/SLA no detalhe imediatamente, sem esperar o refetch.
+      qc.setQueryData<TicketDetail>(['ticket', id], (old) => (old ? { ...old, ...updated } : old));
       qc.invalidateQueries({ queryKey: ['ticket', id] });
       qc.invalidateQueries({ queryKey: ['tickets'] });
       qc.invalidateQueries({ queryKey: ['unread-count'] });
     },
+    meta: { successMessage: 'Status atualizado' },
   });
 }
 
@@ -105,6 +113,7 @@ export function useAssignTicket(id: string) {
     mutationFn: async (input: AssignTicketInput) =>
       (await api.patch(`/tickets/${id}/assign`, input)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['ticket', id] }),
+    meta: { successMessage: 'Responsável definido' },
   });
 }
 
@@ -117,6 +126,7 @@ export function useAddComment(id: string) {
       qc.invalidateQueries({ queryKey: ['ticket', id] });
       qc.invalidateQueries({ queryKey: ['unread-count'] });
     },
+    meta: { successMessage: 'Comentário enviado' },
   });
 }
 
@@ -130,5 +140,6 @@ export function useCloseTicket(id: string) {
       qc.invalidateQueries({ queryKey: ['tickets'] });
       qc.invalidateQueries({ queryKey: ['unread-count'] });
     },
+    meta: { successMessage: 'Chamado concluído' },
   });
 }

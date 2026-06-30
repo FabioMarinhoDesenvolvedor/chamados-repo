@@ -52,6 +52,15 @@ Recalcular prioridade quando complexity ou departamento mudarem.
   confirmação"); o **solicitante** confirma e avalia, indo para `CLOSED` ("Concluído")
   via `PATCH /tickets/:id/close` (acessível ao solicitante ou admin; só a partir de
   RESOLVED). O admin pode forçar `CLOSED` pelo seletor de status (sem avaliação).
+  `RESOLVED` e `CLOSED` são estágios DISTINTOS (não duplicados) — decisão aprovada.
+- **Controle de status unificado**: a mudança de status (incl. resolver) é feita por UM
+  único seletor no detalhe (sem botão "marcar como resolvido" separado). As opções manuais
+  são `IN_PROGRESS`, `RESOLVED` e, só p/ admin, `CLOSED` (TRIAGE/OPEN são automáticos da
+  triagem; o status atual sempre aparece). No dashboard, staff alterna `RESOLVED ↔ IN_PROGRESS`
+  direto na lista (atalho "Resolver"/"Reabrir").
+- **Comentários encerrados**: ao atingir `RESOLVED` ou `CLOSED`, NINGUÉM comenta (nem admin) —
+  validado no backend (`addComment` → 403) e escondido no front. Para retomar, a equipe reabre
+  o chamado (volta para `IN_PROGRESS`) antes de comentar.
 - **Avaliação**: estrelas 1–5, opcional, salva em `tickets.rating`. Visível só ao admin
   no detalhe do chamado; não entra na timeline pública.
 

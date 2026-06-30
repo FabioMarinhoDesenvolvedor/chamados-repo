@@ -5,7 +5,6 @@ import {
   Complexity,
   TicketAttachment,
   TicketStatus,
-  TICKET_STATUSES,
   isStaffRole,
 } from '@chamados/shared';
 import { useAuth } from '@/auth/auth-context';
@@ -28,6 +27,7 @@ import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { PriorityBadge } from '@/components/PriorityBadge';
 import { StatusBadge } from '@/components/StatusBadge';
+import { Spinner } from '@/components/ui/spinner';
 import { AttachmentGallery } from '@/components/AttachmentGallery';
 import { AttachmentInput } from '@/components/AttachmentInput';
 import { COMPLEXITY_LABEL, STATUS_LABEL, complexityLabel } from '@/lib/labels';
@@ -56,7 +56,7 @@ export function TicketDetailPage() {
   const [comment, setComment] = useState('');
   const [commentFiles, setCommentFiles] = useState<File[]>([]);
 
-  if (isLoading) return <p className="text-gray-500">Carregando...</p>;
+  if (isLoading) return <Spinner label="Carregando chamado..." />;
   if (!ticket) return <p className="text-gray-500">Chamado não encontrado.</p>;
 
   const sla = slaText(ticket.slaHours);
@@ -64,6 +64,15 @@ export function TicketDetailPage() {
 
   // Possíveis responsáveis: equipe de atendimento (ADMIN ou OPERATOR).
   const staffUsers = allUsers?.filter((u) => isStaffRole(u.role)) ?? [];
+
+  // Status manualmente selecionáveis (TRIAGE/OPEN são automáticos da triagem). Mantém os
+  // dois estágios do encerramento: RESOLVED (aguarda confirmação) e CLOSED (admin encerra).
+  const STAFF_STATUS_OPTIONS: TicketStatus[] = isAdmin
+    ? ['IN_PROGRESS', 'RESOLVED', 'CLOSED']
+    : ['IN_PROGRESS', 'RESOLVED'];
+  const statusOptions = STAFF_STATUS_OPTIONS.includes(ticket.status)
+    ? STAFF_STATUS_OPTIONS
+    : [ticket.status, ...STAFF_STATUS_OPTIONS];
 
   const feed: FeedItem[] = [
     ...ticket.history.map((h) => ({
@@ -187,12 +196,15 @@ export function TicketDetailPage() {
                 value={ticket.status}
                 onChange={(e) => updateStatus.mutate({ status: e.target.value as TicketStatus })}
               >
-                {TICKET_STATUSES.map((s) => (
+                {statusOptions.map((s) => (
                   <option key={s} value={s}>
                     {STATUS_LABEL[s]}
                   </option>
                 ))}
               </Select>
+              <p className="mt-1 text-xs text-gray-500">
+                "Resolvido" aguarda a confirmação do solicitante; "Concluído" encerra o chamado.
+              </p>
             </div>
             <div>
               <Label>Responsável</Label>
@@ -217,21 +229,10 @@ export function TicketDetailPage() {
                 <Button
                   variant="secondary"
                   className="w-full"
-                  disabled={assignTicket.isPending}
+                  loading={assignTicket.isPending}
                   onClick={() => user && assignTicket.mutate({ assignedTo: user.id })}
                 >
                   Assumir para mim
-                </Button>
-              )}
-            </div>
-            <div className="flex items-end">
-              {!DONE.includes(ticket.status) && (
-                <Button
-                  className="w-full"
-                  disabled={updateStatus.isPending}
-                  onClick={() => updateStatus.mutate({ status: 'RESOLVED' })}
-                >
-                  ✓ Marcar como resolvido
                 </Button>
               )}
             </div>
@@ -261,7 +262,7 @@ export function TicketDetailPage() {
             <StarRating value={rating} onChange={setRating} />
           </div>
           <Button
-            disabled={closeTicket.isPending}
+            loading={closeTicket.isPending}
             onClick={() => closeTicket.mutate({ rating: rating || undefined })}
           >
             {closeTicket.isPending ? 'Concluindo...' : 'Concluir chamado'}
@@ -298,9 +299,11 @@ export function TicketDetailPage() {
           ))}
         </ol>
 
-        {!isStaff && DONE.includes(ticket.status) ? (
+        {DONE.includes(ticket.status) ? (
           <p className="mt-6 rounded-md bg-gray-50 p-3 text-sm text-gray-500">
-            Este chamado foi concluído. Comentários encerrados.
+            {ticket.status === 'RESOLVED'
+              ? 'Chamado resolvido (aguardando confirmação). Comentários encerrados.'
+              : 'Este chamado foi concluído. Comentários encerrados.'}
           </p>
         ) : (
           <form onSubmit={onAddComment} className="mt-6 space-y-2">
@@ -311,7 +314,7 @@ export function TicketDetailPage() {
               onChange={(e) => setComment(e.target.value)}
             />
             <AttachmentInput files={commentFiles} onChange={setCommentFiles} disabled={sendingComment} />
-            <Button type="submit" disabled={sendingComment || !comment.trim()}>
+            <Button type="submit" loading={sendingComment} disabled={!comment.trim()}>
               {sendingComment ? 'Enviando...' : 'Comentar'}
             </Button>
           </form>

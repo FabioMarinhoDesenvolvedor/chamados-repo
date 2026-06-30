@@ -137,7 +137,7 @@ export function LoginPage() {
 
           {error && <p className="text-sm text-red-600">{error}</p>}
 
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button type="submit" className="w-full" loading={loading}>
             {loading
               ? isFirst
                 ? 'Definindo...'

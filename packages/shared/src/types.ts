@@ -181,6 +181,9 @@ export interface ActivityLogItem {
   actorName: string;
   ticketId: string;
   ticketTitle: string;
+  // Estado atual do chamado (para a tabela de relatório identificar por ID + status/prioridade).
+  ticketStatus: TicketStatus;
+  ticketPriority: Priority | null;
   fromStatus: TicketStatus | null;
   toStatus: TicketStatus | null;
   comment: string | null;

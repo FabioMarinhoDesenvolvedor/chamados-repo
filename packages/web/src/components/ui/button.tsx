@@ -1,10 +1,14 @@
 import { ButtonHTMLAttributes } from 'react';
+import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
+  // Enquanto `loading`, o botão fica desabilitado e mostra um mini-spinner.
+  // Impede cliques repetidos (ex.: gerar relatório em sistema lento).
+  loading?: boolean;
 }
 
 const VARIANTS: Record<Variant, string> = {
@@ -14,15 +18,26 @@ const VARIANTS: Record<Variant, string> = {
   danger: 'bg-red-600 text-white hover:bg-red-700',
 };
 
-export function Button({ variant = 'primary', className, ...props }: ButtonProps) {
+export function Button({
+  variant = 'primary',
+  className,
+  loading = false,
+  disabled,
+  children,
+  ...props
+}: ButtonProps) {
   return (
     <button
+      disabled={disabled || loading}
       className={cn(
         'inline-flex min-h-[44px] items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50',
         VARIANTS[variant],
         className,
       )}
       {...props}
-    />
+    >
+      {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+      {children}
+    </button>
   );
 }

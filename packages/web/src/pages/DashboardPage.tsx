@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { MouseEvent, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Check } from 'lucide-react';
+import { Check, RotateCcw } from 'lucide-react';
 import {
   Priority,
   PRIORITIES,
@@ -22,24 +22,40 @@ import { PRIORITY_LABEL, STATUS_LABEL } from '@/lib/labels';
 
 const DONE: TicketStatus[] = ['RESOLVED', 'CLOSED'];
 
-function ConcludeButton({ ticket }: { ticket: Ticket }) {
+// Alterna o chamado entre "em andamento" e "resolvido" direto da lista (só staff).
+// CLOSED é terminal e TRIAGE precisa de triagem antes — nesses casos não há ação rápida.
+function StatusToggleButton({ ticket }: { ticket: Ticket }) {
   const updateStatus = useUpdateStatus(ticket.id);
-  if (DONE.includes(ticket.status)) {
-    return <span className="text-xs text-gray-400">—</span>;
+  const toggle = (status: TicketStatus) => (e: MouseEvent) => {
+    e.preventDefault();
+    updateStatus.mutate({ status });
+  };
+
+  if (ticket.status === 'RESOLVED') {
+    return (
+      <Button
+        variant="secondary"
+        className="min-h-0 px-2 py-1 text-xs"
+        loading={updateStatus.isPending}
+        onClick={toggle('IN_PROGRESS')}
+      >
+        <RotateCcw className="mr-1 h-4 w-4" /> Reabrir
+      </Button>
+    );
   }
-  return (
-    <Button
-      variant="secondary"
-      className="min-h-0 px-2 py-1 text-xs"
-      disabled={updateStatus.isPending}
-      onClick={(e) => {
-        e.preventDefault();
-        updateStatus.mutate({ status: 'RESOLVED' });
-      }}
-    >
-      <Check className="mr-1 h-4 w-4" /> Resolver
-    </Button>
-  );
+  if (ticket.status === 'OPEN' || ticket.status === 'IN_PROGRESS') {
+    return (
+      <Button
+        variant="secondary"
+        className="min-h-0 px-2 py-1 text-xs"
+        loading={updateStatus.isPending}
+        onClick={toggle('RESOLVED')}
+      >
+        <Check className="mr-1 h-4 w-4" /> Resolver
+      </Button>
+    );
+  }
+  return <span className="text-xs text-gray-400">—</span>;
 }
 
 export function DashboardPage() {
@@ -175,7 +191,7 @@ export function DashboardPage() {
                     </td>
                     {isStaff && (
                       <td className="px-4 py-3">
-                        <ConcludeButton ticket={t} />
+                        <StatusToggleButton ticket={t} />
                       </td>
                     )}
                   </tr>
@@ -210,7 +226,7 @@ export function DashboardPage() {
                 </Link>
                 {isStaff && (
                   <div className="mt-3">
-                    <ConcludeButton ticket={t} />
+                    <StatusToggleButton ticket={t} />
                   </div>
                 )}
               </Card>

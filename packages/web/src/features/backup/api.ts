@@ -14,5 +14,6 @@ export function useRunBackup() {
   return useMutation({
     mutationFn: async () => (await api.post<BackupRunResult>('/backup/run')).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['backups'] }),
+    meta: { successMessage: 'Backup gerado' },
   });
 }

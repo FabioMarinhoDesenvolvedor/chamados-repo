@@ -100,7 +100,7 @@ export class TicketsService {
       : null;
     const moveToOpen = ticket.status === 'TRIAGE' && complexity != null;
 
-    return this.repo.applyTriage({
+    const updated = await this.repo.applyTriage({
       id,
       complexity,
       priority,
@@ -108,6 +108,9 @@ export class TicketsService {
       moveToOpen,
       changedBy: user.userId,
     });
+    // Retorna já projetado (prioridade recalculada + SLA derivado + projeção por papel),
+    // para o front aplicar a resposta direto no cache e o badge refletir na hora.
+    return this.hideByRole(this.withSla(updated), user);
   }
 
   async list(query: TicketQueryDto, user: AuthUser) {
@@ -216,13 +219,14 @@ export class TicketsService {
     const resolvedAt =
       status === 'RESOLVED' ? new Date() : status === 'CLOSED' ? ticket.resolvedAt : null;
 
-    return this.repo.updateStatusWithHistory({
+    const updated = await this.repo.updateStatusWithHistory({
       id,
       fromStatus: ticket.status,
       toStatus: status,
       changedBy: user.userId,
       resolvedAt,
     });
+    return this.hideByRole(this.withSla(updated), user);
   }
 
   // Encerramento pelo solicitante (ou admin): só a partir de RESOLVED.
@@ -270,9 +274,12 @@ export class TicketsService {
     const ticket = await this.repo.findById(id);
     if (!ticket) throw new NotFoundException('Chamado não encontrado');
     this.ensureCanView(ticket.requesterId, user);
-    // Chamado concluído: o usuário comum não pode mais comentar (admin tem acesso total).
-    if (user.role === 'USER' && (ticket.status === 'RESOLVED' || ticket.status === 'CLOSED')) {
-      throw new ForbiddenException('Este chamado foi concluído. Não é possível adicionar comentários.');
+    // Chamado resolvido/concluído: ninguém comenta (nem admin). Para retomar, a equipe
+    // volta o status para "em andamento" (reabre) antes de comentar.
+    if (ticket.status === 'RESOLVED' || ticket.status === 'CLOSED') {
+      throw new ForbiddenException(
+        'Este chamado está resolvido/concluído. Não é possível adicionar comentários.',
+      );
     }
     const comment = await this.repo.addComment(id, user.userId, body);
     // NUNCA expor passwordHash do autor no retorno do comentário.

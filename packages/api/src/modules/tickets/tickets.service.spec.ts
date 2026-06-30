@@ -13,6 +13,23 @@ function makeService(over: {
     findById: async () => over.ticket ?? null,
     assign: async (id: string, assignedTo: string) => ({ id, assignedTo }),
     closeWithRating: async (args: unknown) => args,
+    addComment: async (ticketId: string, authorId: string, body: string) => ({
+      id: 'c1',
+      ticketId,
+      authorId,
+      body,
+      createdAt: new Date(),
+      author: {
+        id: authorId,
+        name: 'Autor',
+        email: 'a@x',
+        role: 'ADMIN',
+        departmentId: null,
+        mustChangePassword: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    }),
   } as any;
   const users = { findById: async () => over.assignee ?? null } as any;
   return new TicketsService(repo, {} as any, users, {} as any, {} as any);
@@ -55,6 +72,23 @@ test('close: o solicitante pode concluir um chamado RESOLVED', async () => {
   const svc = makeService({ ticket: { id: 't1', requesterId: 'req1', status: 'RESOLVED' } });
   const r = await svc.close('t1', 5, requester);
   assert.equal((r as any).id, 't1');
+});
+
+// ---- addComment (bloqueio em chamado encerrado) ----
+test('addComment: ADMIN não pode comentar em chamado RESOLVED', async () => {
+  const svc = makeService({ ticket: { id: 't1', requesterId: 'req1', status: 'RESOLVED' } });
+  await assert.rejects(() => svc.addComment('t1', 'oi', admin), (e) => e instanceof ForbiddenException);
+});
+
+test('addComment: ninguém comenta em chamado CLOSED (nem admin)', async () => {
+  const svc = makeService({ ticket: { id: 't1', requesterId: 'req1', status: 'CLOSED' } });
+  await assert.rejects(() => svc.addComment('t1', 'oi', admin), (e) => e instanceof ForbiddenException);
+});
+
+test('addComment: chamado em andamento aceita comentário', async () => {
+  const svc = makeService({ ticket: { id: 't1', requesterId: 'req1', status: 'IN_PROGRESS' } });
+  const r = await svc.addComment('t1', 'oi', admin);
+  assert.equal((r as any).id, 'c1');
 });
 
 // ---- hideByRole (projeção por papel) ----

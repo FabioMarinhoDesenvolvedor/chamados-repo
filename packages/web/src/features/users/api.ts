@@ -16,6 +16,7 @@ export function useCreateUser() {
     mutationFn: async (input: CreateUserInput) =>
       (await api.post<UserPublic>('/users', input)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
+    meta: { successMessage: 'Usuário criado' },
   });
 }
 
@@ -25,6 +26,7 @@ export function useUpdateUser() {
     mutationFn: async ({ id, input }: { id: string; input: UpdateUserInput }) =>
       (await api.patch<UserPublic>(`/users/${id}`, input)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
+    meta: { successMessage: 'Usuário atualizado' },
   });
 }
 
@@ -33,5 +35,6 @@ export function useDeleteUser() {
   return useMutation({
     mutationFn: async (id: string) => (await api.delete(`/users/${id}`)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
+    meta: { successMessage: 'Usuário removido' },
   });
 }

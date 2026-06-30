@@ -153,7 +153,7 @@ export function NewTicketPage() {
             </p>
             {error && <p className="text-sm text-red-600">{error}</p>}
             <div className="flex gap-3">
-              <Button type="submit" disabled={submitting}>
+              <Button type="submit" loading={submitting}>
                 {submitting ? 'Abrindo...' : 'Abrir chamado'}
               </Button>
               <Button type="button" variant="secondary" onClick={() => navigate('/')}>

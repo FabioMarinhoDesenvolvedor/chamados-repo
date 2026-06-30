@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { ReactNode } from 'react';
+import { Toaster } from '@/components/toast/Toaster';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { AppShell } from '@/layouts/AppShell';
 import { LoginPage } from '@/pages/LoginPage';
@@ -23,6 +24,7 @@ function Private({ children, adminOnly }: { children: ReactNode; adminOnly?: boo
 export function App() {
   return (
     <BrowserRouter>
+      <Toaster />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/" element={<Private><DashboardPage /></Private>} />

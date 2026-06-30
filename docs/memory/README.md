@@ -39,3 +39,4 @@
 - handoffs/sessao-2026-06-27-vault-backup-reports.md
 - handoffs/sessao-2026-06-29.md
 - handoffs/sessao-2026-06-30.md
+- handoffs/sessao-2026-06-30-correcoes.md
