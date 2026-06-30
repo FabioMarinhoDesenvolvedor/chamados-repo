@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/auth/auth-context';
 import { useDepartments } from '@/features/departments/api';
 import { useUsers } from '@/features/users/api';
@@ -17,6 +17,8 @@ export function NewTicketPage() {
   const { user } = useAuth();
   const { data: departments } = useDepartments();
   const isAdmin = user?.role === 'ADMIN';
+  // OPERATOR não abre chamados (só atende) — bloqueia o acesso direto à rota.
+  const blockOperator = user?.role === 'OPERATOR';
   const { data: users } = useUsers(isAdmin);
   const createTicket = useCreateTicket();
   const uploadAttachments = useUploadAttachments();
@@ -60,6 +62,8 @@ export function NewTicketPage() {
   }
 
   const submitting = createTicket.isPending || uploadAttachments.isPending;
+
+  if (blockOperator) return <Navigate to="/" replace />;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">

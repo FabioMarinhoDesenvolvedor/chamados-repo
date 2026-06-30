@@ -4,6 +4,16 @@
 export { ROLES, COMPLEXITIES, PRIORITIES, TICKET_STATUSES } from './enums';
 export type { Role, Complexity, Priority, TicketStatus } from './enums';
 
+export { isStaffRole } from './roles';
+
+export {
+  PASSWORD_MIN_LENGTH,
+  STRONG_PASSWORD_REGEX,
+  PASSWORD_RULE_MESSAGE,
+  TEMP_PASSWORD_MIN_LENGTH,
+  isStrongPassword,
+} from './password';
+
 export type {
   UserPublic,
   Department,

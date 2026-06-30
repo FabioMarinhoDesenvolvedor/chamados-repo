@@ -1,12 +1,13 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { MustChangePasswordGuard } from '../../common/guards/must-change-password.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { ReportsService } from './reports.service';
 import { ReportQueryDto } from './dto/report-query.dto';
 
 @Controller('reports')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, MustChangePasswordGuard)
 export class ReportsController {
   constructor(private readonly reports: ReportsService) {}
 

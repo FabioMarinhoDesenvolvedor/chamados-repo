@@ -1,5 +1,6 @@
 import { FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { isStrongPassword, PASSWORD_MIN_LENGTH, PASSWORD_RULE_MESSAGE } from '@chamados/shared';
 import { useAuth } from '@/auth/auth-context';
 import { api, apiMessage } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -25,8 +26,8 @@ export function ChangePasswordPage() {
       setError('A confirmação não confere com a nova senha.');
       return;
     }
-    if (newPassword.length < 6) {
-      setError('A nova senha deve ter ao menos 6 caracteres.');
+    if (!isStrongPassword(newPassword)) {
+      setError(PASSWORD_RULE_MESSAGE);
       return;
     }
     setSaving(true);
@@ -83,9 +84,10 @@ export function ChangePasswordPage() {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               required
-              minLength={6}
+              minLength={PASSWORD_MIN_LENGTH}
               autoComplete="new-password"
             />
+            <p className="mt-1 text-xs text-gray-500">{PASSWORD_RULE_MESSAGE}</p>
           </div>
           <div>
             <Label htmlFor="confirm">Confirmar nova senha</Label>
@@ -95,7 +97,7 @@ export function ChangePasswordPage() {
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               required
-              minLength={6}
+              minLength={PASSWORD_MIN_LENGTH}
               autoComplete="new-password"
             />
           </div>

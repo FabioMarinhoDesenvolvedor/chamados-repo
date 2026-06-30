@@ -2,7 +2,7 @@
 // Definidos como union types + arrays const para uso runtime (validação) e estático.
 // Valores idênticos aos enums do Prisma => interoperáveis sem cast entre API e shared.
 
-export const ROLES = ['ADMIN', 'USER'] as const;
+export const ROLES = ['ADMIN', 'USER', 'OPERATOR'] as const;
 export type Role = (typeof ROLES)[number];
 
 export const COMPLEXITIES = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const;

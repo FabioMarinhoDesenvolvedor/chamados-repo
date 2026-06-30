@@ -11,6 +11,7 @@ import { UsersRepository } from './users.repository';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { toUserPublic } from './user.mapper';
+import { BCRYPT_ROUNDS } from './users.constants';
 
 @Injectable()
 export class UsersService {
@@ -39,7 +40,7 @@ export class UsersService {
     const exists = await this.repo.findByEmail(dto.email);
     if (exists) throw new ConflictException('E-mail já cadastrado');
 
-    const passwordHash = await bcrypt.hash(dto.password, 10);
+    const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
     const user = await this.repo.create({
       name: dto.name,
       email: dto.email,
@@ -65,7 +66,7 @@ export class UsersService {
     if (dto.role !== undefined) data.role = dto.role;
     if (dto.password) {
       // Reset de senha pelo admin = senha temporária; usuário troca no próximo acesso.
-      data.passwordHash = await bcrypt.hash(dto.password, 10);
+      data.passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
       data.mustChangePassword = true;
     }
     if (dto.departmentId !== undefined) {
@@ -80,7 +81,7 @@ export class UsersService {
 
   // Primeiro acesso: define a senha sem exigir a atual (válido só enquanto mustChangePassword).
   async completeFirstAccess(userId: string, newPassword: string) {
-    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
     return this.repo.update(userId, { passwordHash, mustChangePassword: false });
   }
 
@@ -89,7 +90,7 @@ export class UsersService {
     if (!user) throw new NotFoundException('Usuário não encontrado');
     const ok = await bcrypt.compare(currentPassword, user.passwordHash);
     if (!ok) throw new BadRequestException('Senha atual incorreta');
-    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
     await this.repo.update(userId, { passwordHash, mustChangePassword: false });
     return { success: true };
   }

@@ -41,6 +41,7 @@ export const COMPLEXITY_LABEL: Record<Complexity, string> = {
 export const ROLE_LABEL: Record<Role, string> = {
   ADMIN: 'Administrador',
   USER: 'Usuário',
+  OPERATOR: 'Operador',
 };
 
 // Helpers tolerantes a null (chamado em triagem ainda não tem prioridade/complexidade).

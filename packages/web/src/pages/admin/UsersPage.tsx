@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react';
-import { Role, ROLES, UserPublic } from '@chamados/shared';
+import { Role, ROLES, TEMP_PASSWORD_MIN_LENGTH, UserPublic } from '@chamados/shared';
 import { useAuth } from '@/auth/auth-context';
 import { useCreateUser, useDeleteUser, useUpdateUser, useUsers } from '@/features/users/api';
 import { useDepartments } from '@/features/departments/api';
@@ -135,7 +135,7 @@ export function UsersPage() {
               value={form.password}
               onChange={(e) => update('password', e.target.value)}
               required
-              minLength={6}
+              minLength={TEMP_PASSWORD_MIN_LENGTH}
             />
           </div>
           <div>
@@ -242,7 +242,7 @@ export function UsersPage() {
                 value={edit.password}
                 onChange={(e) => updateEdit('password', e.target.value)}
                 placeholder="Deixe em branco para manter"
-                minLength={6}
+                minLength={TEMP_PASSWORD_MIN_LENGTH}
               />
             </div>
             <div>

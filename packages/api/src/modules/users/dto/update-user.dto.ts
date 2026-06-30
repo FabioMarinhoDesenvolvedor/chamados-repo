@@ -7,7 +7,7 @@ import {
   MinLength,
   ValidateIf,
 } from 'class-validator';
-import { ROLES, Role } from '@chamados/shared';
+import { ROLES, Role, TEMP_PASSWORD_MIN_LENGTH } from '@chamados/shared';
 
 export class UpdateUserDto {
   @IsOptional()
@@ -21,7 +21,7 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsString()
-  @MinLength(6)
+  @MinLength(TEMP_PASSWORD_MIN_LENGTH)
   password?: string;
 
   @IsOptional()

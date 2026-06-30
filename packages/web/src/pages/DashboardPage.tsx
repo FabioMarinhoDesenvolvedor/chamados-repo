@@ -1,7 +1,14 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Check } from 'lucide-react';
-import { Priority, PRIORITIES, Ticket, TicketStatus, TICKET_STATUSES } from '@chamados/shared';
+import {
+  Priority,
+  PRIORITIES,
+  Ticket,
+  TicketStatus,
+  TICKET_STATUSES,
+  isStaffRole,
+} from '@chamados/shared';
 import { useAuth } from '@/auth/auth-context';
 import { useTickets, useUpdateStatus } from '@/features/tickets/api';
 import { Card } from '@/components/ui/card';
@@ -37,7 +44,10 @@ function ConcludeButton({ ticket }: { ticket: Ticket }) {
 
 export function DashboardPage() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMIN';
+  // Staff (ADMIN/OPERATOR): vê prioridade, KPIs e ações de atendimento.
+  const isStaff = user ? isStaffRole(user.role) : false;
+  // OPERATOR não abre chamados (só atende); USER e ADMIN sim.
+  const canCreate = user?.role !== 'OPERATOR';
   // 'ACTIVE' (padrão) = só chamados em aberto/andamento; '' = todos; ou um status específico.
   const [status, setStatus] = useState<TicketStatus | '' | 'ACTIVE'>('ACTIVE');
   const [priority, setPriority] = useState<Priority | ''>('');
@@ -67,15 +77,17 @@ export function DashboardPage() {
           <h2 className="text-2xl font-bold text-grena-dark">Chamados</h2>
           <p className="text-sm text-gray-500">Acompanhe e gerencie os chamados</p>
         </div>
-        <Link
-          to="/tickets/new"
-          className="inline-flex min-h-[44px] items-center justify-center rounded-md bg-grena px-4 py-2 text-sm font-medium text-white shadow-grena transition hover:bg-grena-dark"
-        >
-          Novo chamado
-        </Link>
+        {canCreate && (
+          <Link
+            to="/tickets/new"
+            className="inline-flex min-h-[44px] items-center justify-center rounded-md bg-grena px-4 py-2 text-sm font-medium text-white shadow-grena transition hover:bg-grena-dark"
+          >
+            Novo chamado
+          </Link>
+        )}
       </div>
 
-      {isAdmin && (
+      {isStaff && (
         <>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <KpiCard label="Em triagem" value={kpis.triagem} />
@@ -102,7 +114,7 @@ export function DashboardPage() {
             ))}
           </Select>
         </div>
-        {isAdmin && (
+        {isStaff && (
           <div className="sm:w-48">
             <Select value={priority} onChange={(e) => setPriority(e.target.value as Priority | '')}>
               <option value="">Todas as prioridades</option>
@@ -129,10 +141,10 @@ export function DashboardPage() {
               <thead className="bg-grena/5 text-left text-xs uppercase text-grena">
                 <tr>
                   <th className="px-4 py-3">Título</th>
-                  <th className="px-4 py-3">{isAdmin ? 'Prioridade' : 'Prazo'}</th>
+                  <th className="px-4 py-3">{isStaff ? 'Prioridade' : 'Prazo'}</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Aberto em</th>
-                  {isAdmin && <th className="px-4 py-3">Ação</th>}
+                  {isStaff && <th className="px-4 py-3">Ação</th>}
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -147,7 +159,7 @@ export function DashboardPage() {
                       </Link>
                     </td>
                     <td className="px-4 py-3">
-                      {isAdmin ? (
+                      {isStaff ? (
                         <PriorityBadge priority={t.priority} />
                       ) : (
                         <span className="text-xs text-gray-500">
@@ -161,7 +173,7 @@ export function DashboardPage() {
                     <td className="px-4 py-3 text-gray-500">
                       {new Date(t.createdAt).toLocaleDateString('pt-BR')}
                     </td>
-                    {isAdmin && (
+                    {isStaff && (
                       <td className="px-4 py-3">
                         <ConcludeButton ticket={t} />
                       </td>
@@ -183,7 +195,7 @@ export function DashboardPage() {
                     {t.title}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    {isAdmin ? (
+                    {isStaff ? (
                       <PriorityBadge priority={t.priority} />
                     ) : (
                       <span className="text-xs text-gray-500">
@@ -196,7 +208,7 @@ export function DashboardPage() {
                     </span>
                   </div>
                 </Link>
-                {isAdmin && (
+                {isStaff && (
                   <div className="mt-3">
                     <ConcludeButton ticket={t} />
                   </div>

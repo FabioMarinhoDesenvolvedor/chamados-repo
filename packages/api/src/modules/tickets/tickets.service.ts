@@ -8,7 +8,7 @@ import { Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import { Complexity, Priority, TicketStatus } from '@chamados/shared';
+import { Complexity, Priority, TicketStatus, isStaffRole } from '@chamados/shared';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { DepartmentsRepository } from '../departments/departments.repository';
 import { UsersRepository } from '../users/users.repository';
@@ -114,7 +114,7 @@ export class TicketsService {
     const where: Prisma.TicketWhereInput = {};
     if (query.status) where.status = query.status;
     if (query.priority) where.priority = query.priority;
-    // Visibilidade: USER vê apenas os próprios chamados; ADMIN vê todos.
+    // Visibilidade: USER vê apenas os próprios chamados; staff (ADMIN/OPERATOR) vê todos.
     if (user.role === 'USER') where.requesterId = user.userId;
 
     const tickets = await this.repo.findMany(where);
@@ -125,7 +125,7 @@ export class TicketsService {
     const seen = new Map(states.map((s) => [s.ticketId, s.lastSeenAt]));
 
     return tickets.map((t) =>
-      this.hideForUser(
+      this.hideByRole(
         this.withSla({
           ...t,
           hasUnread: this.isUnread(t.lastActivityAt, t.lastActivityBy, seen.get(t.id), user.userId),
@@ -140,7 +140,7 @@ export class TicketsService {
     if (!ticket) throw new NotFoundException('Chamado não encontrado');
     this.ensureCanView(ticket.requesterId, user);
     await this.repo.markSeen(user.userId, id);
-    return this.hideForUser(
+    return this.hideByRole(
       this.withSla({
         ...ticket,
         // Mapeia relacionamentos de usuário p/ UserPublic (NUNCA expor passwordHash).
@@ -226,10 +226,13 @@ export class TicketsService {
   }
 
   // Encerramento pelo solicitante (ou admin): só a partir de RESOLVED.
+  // OPERATOR resolve o chamado, mas a confirmação/conclusão é do solicitante ou do ADMIN.
   async close(id: string, rating: number | undefined, user: AuthUser) {
     const ticket = await this.repo.findById(id);
     if (!ticket) throw new NotFoundException('Chamado não encontrado');
-    this.ensureCanView(ticket.requesterId, user);
+    if (user.role !== 'ADMIN' && ticket.requesterId !== user.userId) {
+      throw new ForbiddenException('Apenas o solicitante ou um administrador pode concluir o chamado');
+    }
     if (ticket.status !== 'RESOLVED') {
       throw new BadRequestException(
         'Só é possível concluir um chamado já resolvido pela TI',
@@ -243,15 +246,22 @@ export class TicketsService {
     });
   }
 
-  async assign(id: string, assignedTo: string) {
+  async assign(id: string, assignedTo: string, user: AuthUser) {
     const ticket = await this.repo.findById(id);
     if (!ticket) throw new NotFoundException('Chamado não encontrado');
 
+    // OPERATOR só pode assumir o chamado para si; ADMIN atribui a qualquer membro da equipe.
+    if (user.role === 'OPERATOR' && assignedTo !== user.userId) {
+      throw new ForbiddenException('Operador só pode assumir chamados para si mesmo');
+    }
+
     const assignee = await this.users.findById(assignedTo);
     if (!assignee) throw new NotFoundException('Usuário atribuído não encontrado');
-    // Regra de negócio: assigned_to deve ser sempre um admin.
-    if (assignee.role !== 'ADMIN') {
-      throw new BadRequestException('Apenas administradores podem ser responsáveis por um chamado');
+    // Regra de negócio: o responsável deve ser da equipe de atendimento (ADMIN ou OPERATOR).
+    if (!isStaffRole(assignee.role)) {
+      throw new BadRequestException(
+        'Apenas administradores ou operadores podem ser responsáveis por um chamado',
+      );
     }
     return this.repo.assign(id, assignedTo);
   }
@@ -283,13 +293,18 @@ export class TicketsService {
     };
   }
 
-  // Esconde do USER os campos de cálculo (prioridade/complexidade) e a nota.
-  // SLA derivado (slaHours/slaDueAt) é mantido — é o que o usuário pode ver.
-  private hideForUser<
+  // Projeção por papel:
+  // - USER: esconde prioridade/complexidade (cálculo interno) e a nota.
+  // - OPERATOR: vê prioridade/complexidade (precisa para atender), mas NÃO a nota
+  //   (avaliação é visível só ao admin — business-rules).
+  // - ADMIN: vê tudo.
+  // SLA derivado (slaHours/slaDueAt) é sempre mantido.
+  private hideByRole<
     T extends { priority: Priority | null; complexity: Complexity | null; rating: number | null },
   >(t: T, user: AuthUser): T {
-    if (user.role !== 'USER') return t;
-    return { ...t, priority: null, complexity: null, rating: null };
+    if (user.role === 'USER') return { ...t, priority: null, complexity: null, rating: null };
+    if (user.role === 'OPERATOR') return { ...t, rating: null };
+    return t;
   }
 
   private isUnread(
@@ -304,7 +319,8 @@ export class TicketsService {
   }
 
   private ensureCanView(requesterId: string, user: AuthUser): void {
-    if (user.role === 'ADMIN') return;
+    // Staff (ADMIN/OPERATOR) vê todos os chamados; USER só os próprios.
+    if (isStaffRole(user.role)) return;
     if (requesterId !== user.userId) {
       throw new ForbiddenException('Você não tem acesso a este chamado');
     }

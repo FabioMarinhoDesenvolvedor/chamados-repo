@@ -3,8 +3,10 @@
 - **Base URL:** `/api` (ex.: `http://localhost:3000/api`)
 - **Auth:** todas as rotas exigem `Authorization: Bearer <token>`, exceto `POST /auth/login` e
   `POST /auth/first-access`.
-- **Permissão:** "ADMIN" = exige perfil admin (`@Roles('ADMIN')`); "Autenticado" = qualquer
-  usuário logado. Filtros por dono (USER só vê os seus) são aplicados no service.
+- **Permissão:** "ADMIN" = exige perfil admin (`@Roles('ADMIN')`); papéis listados (ex.:
+  "ADMIN, OPERATOR") = `@Roles(...)` com aqueles perfis; "Staff" = ADMIN ou OPERATOR
+  (`isStaffRole`); "Autenticado" = qualquer usuário logado. Filtros por dono (USER só vê os
+  seus) e regras finas (ex.: OPERATOR só assume para si) são aplicados no service.
 - **Validação:** corpo validado por DTO (`class-validator`). IDs de rota são UUID
   (`ParseUUIDPipe`) — formato inválido retorna 400.
 
@@ -44,14 +46,15 @@ Troca de senha valida a atual (`bcrypt.compare`) → 400 "Senha atual incorreta"
 
 | Método | Rota | Permissão | Corpo / Notas |
 |--------|------|-----------|---------------|
-| POST | `/tickets` | Autenticado | `{ title, description, departmentId, requesterId? }` — admin pode abrir em nome de outro (`requesterId`) |
-| GET | `/tickets` | Autenticado | lista (USER só os seus); aceita filtros via query |
+| POST | `/tickets` | USER, ADMIN | `{ title, description, departmentId, requesterId? }` — admin pode abrir em nome de outro (`requesterId`). **OPERATOR não abre chamados** |
+| GET | `/tickets` | Autenticado | lista (USER só os seus; **staff vê todos**); aceita filtros via query |
 | GET | `/tickets/unread/count` | Autenticado | `{ count }` de não-lidos (badge/polling) |
-| GET | `/tickets/:id` | Autenticado/dono | detalhe com comentários, anexos e histórico |
+| GET | `/tickets/:id` | Staff/dono | detalhe com comentários, anexos e histórico |
 | PATCH | `/tickets/:id` | ADMIN | `{ complexity?, departmentId? }` — triagem; recalcula prioridade e move `TRIAGE → OPEN` |
-| PATCH | `/tickets/:id/status` | ADMIN | `{ status }` |
-| PATCH | `/tickets/:id/assign` | ADMIN | `{ assignedTo }` |
-| POST | `/tickets/:id/comments` | Autenticado/dono | `{ body }` — **bloqueado p/ USER se status RESOLVED/CLOSED** (403) |
+| PATCH | `/tickets/:id/status` | ADMIN, OPERATOR | `{ status }` |
+| PATCH | `/tickets/:id/assign` | ADMIN, OPERATOR | `{ assignedTo }` — **OPERATOR só pode assumir para si**; ADMIN atribui a qualquer staff |
+| PATCH | `/tickets/:id/close` | ADMIN/dono | `{ rating? }` — conclui (CLOSED) a partir de RESOLVED. **OPERATOR não conclui** |
+| POST | `/tickets/:id/comments` | Staff/dono | `{ body }` — **bloqueado p/ USER se status RESOLVED/CLOSED** (403) |
 
 ### Anexos de chamado
 

@@ -1,14 +1,22 @@
 # Regras de Negócio — Chamados TI
 
-## Perfis de Acesso (2 perfis)
+## Perfis de Acesso (3 perfis)
 - **user**: abre chamados e acompanha os próprios.
-- **admin**: atende, gerencia e vê todos os chamados. `tickets.assigned_to` é SEMPRE um admin.
-- Enum `role` permanece `'admin' | 'user'` (sem 'tecnico' no MVP).
+- **operator**: equipe de atendimento. Vê todos os chamados, assume chamados **para si**,
+  altera status, comenta e resolve (RESOLVED). NÃO gerencia usuários, NÃO faz triagem
+  (definir complexidade), NÃO conclui (CLOSED) e NÃO acessa funcionalidades administrativas.
+- **admin**: acesso total — atende, gerencia (usuários/departamentos/relatórios/backup),
+  faz triagem e vê todos os chamados.
+- **Staff = admin ∪ operator** (equipe de atendimento). `tickets.assigned_to` é sempre um
+  membro do staff (admin ou operator). Helper único: `isStaffRole` em `@chamados/shared`.
+- Enum `role` = `'ADMIN' | 'USER' | 'OPERATOR'`.
 
 ## Visibilidade de Chamados
 - **user**: vê apenas os chamados que ele mesmo abriu (`requester_id = user`).
-- **admin**: vê todos os chamados.
+- **staff (admin/operator)**: vê todos os chamados.
 - Aplicar a regra no service/repository (filtro por role), nunca confiar só no front.
+- Projeção por papel (`hideByRole`): USER não vê prioridade/complexidade/nota; OPERATOR vê
+  prioridade/complexidade mas NÃO a nota (avaliação é só do admin); ADMIN vê tudo.
 
 ## Triagem (complexidade definida pelo admin/TI)
 - O **usuário NÃO escolhe complexidade** ao abrir o chamado (só título, descrição, departamento).

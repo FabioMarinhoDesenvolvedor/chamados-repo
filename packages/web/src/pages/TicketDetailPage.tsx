@@ -6,6 +6,7 @@ import {
   TicketAttachment,
   TicketStatus,
   TICKET_STATUSES,
+  isStaffRole,
 } from '@chamados/shared';
 import { useAuth } from '@/auth/auth-context';
 import {
@@ -41,6 +42,8 @@ export function TicketDetailPage() {
   const { id = '' } = useParams();
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
+  // Staff (ADMIN/OPERATOR): atende o chamado (vê prioridade, muda status, assume, comenta).
+  const isStaff = user ? isStaffRole(user.role) : false;
   const { data: ticket, isLoading } = useTicket(id);
   const updateStatus = useUpdateStatus(id);
   const updateTicket = useUpdateTicket(id);
@@ -59,7 +62,8 @@ export function TicketDetailPage() {
   const sla = slaText(ticket.slaHours);
   const breached = isSlaBreached(ticket.slaDueAt, ticket.status);
 
-  const adminUsers = allUsers?.filter((u) => u.role === 'ADMIN') ?? [];
+  // Possíveis responsáveis: equipe de atendimento (ADMIN ou OPERATOR).
+  const staffUsers = allUsers?.filter((u) => isStaffRole(u.role)) ?? [];
 
   const feed: FeedItem[] = [
     ...ticket.history.map((h) => ({
@@ -95,18 +99,18 @@ export function TicketDetailPage() {
       <div>
         <h2 className="text-2xl font-bold text-grena-dark">{ticket.title}</h2>
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          {isAdmin && <PriorityBadge priority={ticket.priority} />}
+          {isStaff && <PriorityBadge priority={ticket.priority} />}
           <StatusBadge status={ticket.status} />
-          {isAdmin && (
+          {isStaff && (
             <span className="text-xs text-gray-500">
               Complexidade: {complexityLabel(ticket.complexity)}
             </span>
           )}
         </div>
         {sla ? (
-          <p className={`mt-2 text-sm ${breached && isAdmin ? 'font-medium text-red-600' : 'text-grena'}`}>
+          <p className={`mt-2 text-sm ${breached && isStaff ? 'font-medium text-red-600' : 'text-grena'}`}>
             ⏱ {sla}
-            {breached && isAdmin && ' — SLA estourado'}
+            {breached && isStaff && ' — SLA estourado'}
           </p>
         ) : (
           <p className="mt-2 text-sm text-gray-500">Em análise — prazo definido após a triagem.</p>
@@ -148,32 +152,35 @@ export function TicketDetailPage() {
         )}
       </Card>
 
-      {isAdmin && (
+      {isStaff && (
         <Card className="p-6">
-          <h3 className="mb-4 text-sm font-semibold text-grena">Ações do administrador</h3>
+          <h3 className="mb-4 text-sm font-semibold text-grena">Ações de atendimento</h3>
           <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label>Complexidade</Label>
-              <Select
-                value={ticket.complexity ?? ''}
-                onChange={(e) =>
-                  e.target.value &&
-                  updateTicket.mutate({ complexity: e.target.value as Complexity })
-                }
-              >
-                <option value="" disabled>
-                  Definir complexidade...
-                </option>
-                {COMPLEXITIES.map((c) => (
-                  <option key={c} value={c}>
-                    {COMPLEXITY_LABEL[c]}
+            {/* Triagem (definir complexidade) é exclusiva do ADMIN. */}
+            {isAdmin && (
+              <div>
+                <Label>Complexidade</Label>
+                <Select
+                  value={ticket.complexity ?? ''}
+                  onChange={(e) =>
+                    e.target.value &&
+                    updateTicket.mutate({ complexity: e.target.value as Complexity })
+                  }
+                >
+                  <option value="" disabled>
+                    Definir complexidade...
                   </option>
-                ))}
-              </Select>
-              <p className="mt-1 text-xs text-gray-500">
-                Definir a complexidade calcula a prioridade e tira o chamado da triagem.
-              </p>
-            </div>
+                  {COMPLEXITIES.map((c) => (
+                    <option key={c} value={c}>
+                      {COMPLEXITY_LABEL[c]}
+                    </option>
+                  ))}
+                </Select>
+                <p className="mt-1 text-xs text-gray-500">
+                  Definir a complexidade calcula a prioridade e tira o chamado da triagem.
+                </p>
+              </div>
+            )}
             <div>
               <Label>Alterar status</Label>
               <Select
@@ -189,19 +196,33 @@ export function TicketDetailPage() {
             </div>
             <div>
               <Label>Responsável</Label>
-              <Select
-                value={ticket.assignedTo ?? ''}
-                onChange={(e) => e.target.value && assignTicket.mutate({ assignedTo: e.target.value })}
-              >
-                <option value="" disabled>
-                  Selecione um admin...
-                </option>
-                {adminUsers.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name}
+              {isAdmin ? (
+                <Select
+                  value={ticket.assignedTo ?? ''}
+                  onChange={(e) => e.target.value && assignTicket.mutate({ assignedTo: e.target.value })}
+                >
+                  <option value="" disabled>
+                    Selecione um responsável...
                   </option>
-                ))}
-              </Select>
+                  {staffUsers.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}
+                    </option>
+                  ))}
+                </Select>
+              ) : ticket.assignedTo === user?.id ? (
+                <p className="text-sm text-gray-600">Você é o responsável por este chamado.</p>
+              ) : (
+                // OPERATOR só pode assumir o chamado para si.
+                <Button
+                  variant="secondary"
+                  className="w-full"
+                  disabled={assignTicket.isPending}
+                  onClick={() => user && assignTicket.mutate({ assignedTo: user.id })}
+                >
+                  Assumir para mim
+                </Button>
+              )}
             </div>
             <div className="flex items-end">
               {!DONE.includes(ticket.status) && (
@@ -214,7 +235,8 @@ export function TicketDetailPage() {
                 </Button>
               )}
             </div>
-            {ticket.status === 'CLOSED' && (
+            {/* Avaliação do solicitante é visível só ao ADMIN (business-rules). */}
+            {isAdmin && ticket.status === 'CLOSED' && (
               <div className="sm:col-span-2">
                 <Label>Avaliação do solicitante</Label>
                 {ticket.rating ? (
@@ -228,7 +250,7 @@ export function TicketDetailPage() {
         </Card>
       )}
 
-      {!isAdmin && ticket.status === 'RESOLVED' && (
+      {!isStaff && ticket.status === 'RESOLVED' && (
         <Card className="p-6">
           <h3 className="mb-1 text-sm font-semibold text-grena">Confirmar conclusão</h3>
           <p className="mb-4 text-sm text-gray-600">
@@ -276,7 +298,7 @@ export function TicketDetailPage() {
           ))}
         </ol>
 
-        {!isAdmin && DONE.includes(ticket.status) ? (
+        {!isStaff && DONE.includes(ticket.status) ? (
           <p className="mt-6 rounded-md bg-gray-50 p-3 text-sm text-gray-500">
             Este chamado foi concluído. Comentários encerrados.
           </p>

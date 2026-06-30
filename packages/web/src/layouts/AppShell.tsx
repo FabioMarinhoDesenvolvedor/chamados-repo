@@ -49,7 +49,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
   const location = useLocation();
   const { data: unread } = useUnreadCount();
-  const items = NAV.filter((i) => !i.adminOnly || user?.role === 'ADMIN');
+  const items = NAV.filter((i) => {
+    // Itens administrativos: só ADMIN.
+    if (i.adminOnly) return user?.role === 'ADMIN';
+    // "Novo chamado": OPERATOR não abre chamados (só atende).
+    if (i.to === '/tickets/new') return user?.role !== 'OPERATOR';
+    return true;
+  });
 
   function toggleCollapsed() {
     setCollapsed((c) => {

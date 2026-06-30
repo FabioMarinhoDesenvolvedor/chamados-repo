@@ -12,7 +12,8 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "db:seed:admin": "ts-node --transpile-only prisma/seed-admin.ts",
-    "db:reset": "prisma migrate reset"
+    "db:reset": "prisma migrate reset",
+    "test": "node --require ts-node/register/transpile-only --test \"src/**/*.spec.ts\""
   },
   "prisma": {
     "seed": "ts-node --transpile-only prisma/seed.ts"

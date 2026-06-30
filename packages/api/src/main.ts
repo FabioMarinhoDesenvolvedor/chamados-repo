@@ -19,8 +19,11 @@ async function bootstrap(): Promise<void> {
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
   );
+  // Sem CORS_ORIGIN definido, NÃO refletimos qualquer origem (evita liberar
+  // qualquer site com credenciais). Em produção o site é servido na mesma
+  // origem da API; em dev o .env define CORS_ORIGIN (ex.: http://localhost:5173).
   app.enableCors({
-    origin: config.get<string>('CORS_ORIGIN')?.split(',') ?? true,
+    origin: config.get<string>('CORS_ORIGIN')?.split(',') ?? false,
     credentials: true,
   });
 

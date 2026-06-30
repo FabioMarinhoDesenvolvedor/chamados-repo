@@ -16,6 +16,7 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { MustChangePasswordGuard } from '../../common/guards/must-change-password.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { AuthUser, CurrentUser } from '../../common/decorators/current-user.decorator';
 import { TicketsService } from './tickets.service';
@@ -30,11 +31,12 @@ import { TicketQueryDto } from './dto/ticket-query.dto';
 import { MAX_FILES, multerOptions } from './attachments.config';
 
 @Controller('tickets')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, MustChangePasswordGuard)
 export class TicketsController {
   constructor(private readonly tickets: TicketsService) {}
 
   @Post()
+  @Roles('USER', 'ADMIN')
   create(@Body() dto: CreateTicketDto, @CurrentUser() user: AuthUser) {
     return this.tickets.create(dto, user);
   }
@@ -65,7 +67,7 @@ export class TicketsController {
   }
 
   @Patch(':id/status')
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'OPERATOR')
   updateStatus(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateStatusDto,
@@ -84,9 +86,13 @@ export class TicketsController {
   }
 
   @Patch(':id/assign')
-  @Roles('ADMIN')
-  assign(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AssignTicketDto) {
-    return this.tickets.assign(id, dto.assignedTo);
+  @Roles('ADMIN', 'OPERATOR')
+  assign(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AssignTicketDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.tickets.assign(id, dto.assignedTo, user);
   }
 
   @Post(':id/comments')

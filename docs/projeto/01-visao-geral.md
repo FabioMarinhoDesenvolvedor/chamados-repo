@@ -9,15 +9,20 @@ completo de status, comentários e anexos.
 
 ## Perfis de acesso
 
-São **dois perfis** (enum `Role`):
+São **três perfis** (enum `Role`):
 
 - **USER** — abre chamados e acompanha **apenas os próprios** (`requester_id = usuário`).
   Pode comentar enquanto o chamado não estiver concluído.
+- **OPERATOR** — equipe de atendimento. Vê **todos** os chamados, **assume para si**, altera
+  status, comenta e **resolve** (RESOLVED). **Não** abre chamados, **não** faz triagem
+  (definir complexidade), **não** conclui (CLOSED), **não** gerencia usuários e **não** acessa
+  funcionalidades administrativas (relatórios/departamentos/backup).
 - **ADMIN** (TI) — **acesso total**: vê todos os chamados, faz triagem, define complexidade,
-  atribui, muda status, gerencia usuários e departamentos, gera relatórios, opera o cofre de
-  anexos e o backup. O `assigned_to` de um chamado é sempre um admin.
+  atribui (a qualquer membro do staff), muda status, gerencia usuários e departamentos, gera
+  relatórios e opera o backup. Pode abrir em nome de outro usuário.
 
-> Decisão recorrente do projeto: **Admin = acesso total.** USER é sempre restrito.
+> **Staff = ADMIN ∪ OPERATOR** (equipe de atendimento). O `assigned_to` de um chamado é sempre
+> um membro do staff. Decisão recorrente: **Admin = acesso total.** USER é sempre restrito.
 
 ## Fluxo de um chamado (ciclo de vida)
 
