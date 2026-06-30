@@ -8,6 +8,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { DepartmentsModule } from './modules/departments/departments.module';
+import { CategoriesModule } from './modules/categories/categories.module';
 import { TicketsModule } from './modules/tickets/tickets.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { BackupModule } from './modules/backup/backup.module';
@@ -29,6 +30,7 @@ import { BackupModule } from './modules/backup/backup.module';
     AuthModule,
     UsersModule,
     DepartmentsModule,
+    CategoriesModule,
     TicketsModule,
     ReportsModule,
     BackupModule,

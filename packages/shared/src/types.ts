@@ -31,10 +31,37 @@ export interface Department {
   createdAt: string;
 }
 
+// ---- Categorização (blocos) ----
+export interface TicketCategory {
+  id: string;
+  slug: string;
+  name: string;
+  icon: string; // nome do ícone lucide-react
+  sortOrder: number;
+}
+
+export interface TicketSubcategory {
+  id: string;
+  categoryId: string;
+  slug: string;
+  name: string;
+  icon: string;
+  sortOrder: number;
+}
+
+export interface CategoryWithSubcategories extends TicketCategory {
+  subcategories: TicketSubcategory[];
+}
+
 export interface Ticket {
   id: string;
   title: string;
-  description: string;
+  description: string | null;
+  categoryId: string | null;
+  subcategoryId: string | null;
+  // Nomes/ícones da categoria embutidos para exibição (sem N+1 — vêm de um include).
+  category?: TicketCategory | null;
+  subcategory?: TicketSubcategory | null;
   complexity: Complexity | null;
   priority: Priority | null;
   status: TicketStatus;
@@ -107,8 +134,11 @@ export interface AuthResponse {
 
 // ---- Inputs ----
 export interface CreateTicketInput {
-  title: string;
-  description: string;
+  // Categorização guiada (substitui o título livre como entrada principal).
+  categoryId: string;
+  subcategoryId: string;
+  // Descrição complementar opcional (detalhes do problema dentro da subcategoria).
+  description?: string;
   departmentId: string;
   // Apenas ADMIN: abre o chamado em nome de outro usuário (solicitante).
   requesterId?: string;
@@ -164,6 +194,28 @@ export interface CreateDepartmentInput {
 export interface TicketFilters {
   status?: TicketStatus;
   priority?: Priority;
+  categoryId?: string;
+  subcategoryId?: string;
+  // 'active' = só não-encerrados (TRIAGE/OPEN/IN_PROGRESS); ignorado se `status` vier.
+  scope?: 'active' | 'all';
+  // Paginação real (1-based). Default no backend: page=1, pageSize=20.
+  page?: number;
+  pageSize?: number;
+}
+
+// Página genérica de resultados (listagem nunca carrega tudo de uma vez).
+export interface Paginated<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+// KPIs do dashboard calculados no servidor (groupBy status), respeitando o papel.
+export interface TicketStats {
+  triagem: number;
+  abertos: number;
+  resolvidos: number;
 }
 
 // ---- Relatórios (admin) ----
@@ -184,6 +236,8 @@ export interface ActivityLogItem {
   // Estado atual do chamado (para a tabela de relatório identificar por ID + status/prioridade).
   ticketStatus: TicketStatus;
   ticketPriority: Priority | null;
+  ticketCategory: string | null;
+  ticketSubcategory: string | null;
   fromStatus: TicketStatus | null;
   toStatus: TicketStatus | null;
   comment: string | null;
@@ -201,6 +255,8 @@ export interface ReportQuery {
   userId?: string;
   from?: string;
   to?: string;
+  categoryId?: string;
+  subcategoryId?: string;
 }
 
 // ---- Backup (admin) ----

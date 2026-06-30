@@ -8,9 +8,10 @@ import { Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import { Complexity, Priority, TicketStatus, isStaffRole } from '@chamados/shared';
+import { Complexity, Priority, TicketStats, TicketStatus, isStaffRole } from '@chamados/shared';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { DepartmentsRepository } from '../departments/departments.repository';
+import { CategoriesRepository } from '../categories/categories.repository';
 import { UsersRepository } from '../users/users.repository';
 import { toUserPublic } from '../users/user.mapper';
 import { CreateTicketDto } from './dto/create-ticket.dto';
@@ -54,6 +55,7 @@ export class TicketsService {
     private readonly users: UsersRepository,
     private readonly priority: PriorityService,
     private readonly sla: SlaService,
+    private readonly categories: CategoriesRepository,
   ) {}
 
   async create(dto: CreateTicketDto, user: AuthUser) {
@@ -78,9 +80,19 @@ export class TicketsService {
     const department = await this.departments.findById(departmentId);
     if (!department) throw new NotFoundException('Departamento não encontrado');
 
+    // Categorização guiada: valida que a subcategoria pertence à categoria informada
+    // e deriva o "Assunto" (título) a partir dos rótulos — sem texto livre obrigatório.
+    const subcategory = await this.categories.findSubcategory(dto.subcategoryId);
+    if (!subcategory || subcategory.categoryId !== dto.categoryId) {
+      throw new BadRequestException('Subcategoria inválida para a categoria informada');
+    }
+    const title = `${subcategory.category.name} › ${subcategory.name}`;
+
     return this.repo.createWithHistory({
-      title: dto.title,
-      description: dto.description,
+      title,
+      description: dto.description ?? null,
+      categoryId: dto.categoryId,
+      subcategoryId: dto.subcategoryId,
       departmentId,
       requesterId,
     });
@@ -113,21 +125,38 @@ export class TicketsService {
     return this.hideByRole(this.withSla(updated), user);
   }
 
-  async list(query: TicketQueryDto, user: AuthUser) {
+  // Filtro de listagem compartilhado por list() e stats(), com visibilidade por papel.
+  private listWhere(query: TicketQueryDto, user: AuthUser): Prisma.TicketWhereInput {
     const where: Prisma.TicketWhereInput = {};
     if (query.status) where.status = query.status;
+    // "Em aberto": esconde resolvidos/concluídos quando não há status específico.
+    else if (query.scope === 'active') where.status = { notIn: ['RESOLVED', 'CLOSED'] };
     if (query.priority) where.priority = query.priority;
+    if (query.categoryId) where.categoryId = query.categoryId;
+    if (query.subcategoryId) where.subcategoryId = query.subcategoryId;
     // Visibilidade: USER vê apenas os próprios chamados; staff (ADMIN/OPERATOR) vê todos.
     if (user.role === 'USER') where.requesterId = user.userId;
+    return where;
+  }
 
-    const tickets = await this.repo.findMany(where);
+  // Listagem PAGINADA (nunca carrega tudo). Retorna { items, total, page, pageSize }.
+  async list(query: TicketQueryDto, user: AuthUser) {
+    const where = this.listWhere(query, user);
+    const page = query.page && query.page > 0 ? query.page : 1;
+    const pageSize = query.pageSize && query.pageSize > 0 ? query.pageSize : 20;
+
+    const [rows, total] = await Promise.all([
+      this.repo.findManyPaginated(where, (page - 1) * pageSize, pageSize),
+      this.repo.count(where),
+    ]);
+
     const states = await this.repo.findReadStates(
       user.userId,
-      tickets.map((t) => t.id),
+      rows.map((t) => t.id),
     );
     const seen = new Map(states.map((s) => [s.ticketId, s.lastSeenAt]));
 
-    return tickets.map((t) =>
+    const items = rows.map((t) =>
       this.hideByRole(
         this.withSla({
           ...t,
@@ -136,6 +165,22 @@ export class TicketsService {
         user,
       ),
     );
+
+    return { items, total, page, pageSize };
+  }
+
+  // KPIs do dashboard calculados no servidor (groupBy status), respeitando o papel.
+  async stats(user: AuthUser): Promise<TicketStats> {
+    const where: Prisma.TicketWhereInput =
+      user.role === 'USER' ? { requesterId: user.userId } : {};
+    const grouped = await this.repo.groupByStatus(where);
+    const count = (s: TicketStatus) =>
+      grouped.find((g) => g.status === s)?._count._all ?? 0;
+    return {
+      triagem: count('TRIAGE'),
+      abertos: count('OPEN') + count('IN_PROGRESS'),
+      resolvidos: count('RESOLVED') + count('CLOSED'),
+    };
   }
 
   async detail(id: string, user: AuthUser) {
@@ -208,8 +253,8 @@ export class TicketsService {
   }
 
   async unreadCount(user: AuthUser) {
-    const tickets = await this.list({} as TicketQueryDto, user);
-    return { count: tickets.filter((t) => t.hasUnread).length };
+    const count = await this.repo.countUnread(user.userId, user.role === 'USER');
+    return { count };
   }
 
   async updateStatus(id: string, status: TicketStatus, user: AuthUser) {

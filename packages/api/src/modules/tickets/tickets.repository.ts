@@ -11,6 +11,43 @@ export class TicketsRepository {
     return this.prisma.ticket.findMany({ where, orderBy: [{ createdAt: 'desc' }] });
   }
 
+  // Listagem paginada (nunca carrega tudo). Inclui categoria/subcategoria sem N+1.
+  findManyPaginated(where: Prisma.TicketWhereInput, skip: number, take: number) {
+    return this.prisma.ticket.findMany({
+      where,
+      orderBy: [{ createdAt: 'desc' }],
+      skip,
+      take,
+      include: { category: true, subcategory: true },
+    });
+  }
+
+  count(where: Prisma.TicketWhereInput) {
+    return this.prisma.ticket.count({ where });
+  }
+
+  // KPIs: contagem por status no banco (groupBy), respeitando a visibilidade por papel.
+  groupByStatus(where: Prisma.TicketWhereInput) {
+    return this.prisma.ticket.groupBy({ by: ['status'], where, _count: { _all: true } });
+  }
+
+  // Contagem de não-lidos direto no banco (sem carregar os chamados).
+  async countUnread(userId: string, onlyOwn: boolean): Promise<number> {
+    const visibility = onlyOwn ? Prisma.sql`AND t.requester_id = ${userId}` : Prisma.empty;
+    const rows = await this.prisma.$queryRaw<{ count: number }[]>`
+      SELECT count(*)::int AS count
+      FROM tickets t
+      WHERE t.last_activity_by IS DISTINCT FROM ${userId}
+        ${visibility}
+        AND NOT EXISTS (
+          SELECT 1 FROM ticket_read_state r
+          WHERE r.ticket_id = t.id
+            AND r.user_id = ${userId}
+            AND r.last_seen_at >= t.last_activity_at
+        )`;
+    return Number(rows[0]?.count ?? 0);
+  }
+
   findById(id: string) {
     return this.prisma.ticket.findUnique({ where: { id } });
   }
@@ -22,6 +59,8 @@ export class TicketsRepository {
         requester: true,
         assignee: true,
         department: true,
+        category: true,
+        subcategory: true,
         comments: {
           orderBy: { createdAt: 'asc' },
           include: {
@@ -55,7 +94,9 @@ export class TicketsRepository {
 
   createWithHistory(input: {
     title: string;
-    description: string;
+    description: string | null;
+    categoryId: string;
+    subcategoryId: string;
     departmentId: string;
     requesterId: string;
   }) {
@@ -64,6 +105,8 @@ export class TicketsRepository {
         data: {
           title: input.title,
           description: input.description,
+          category: { connect: { id: input.categoryId } },
+          subcategory: { connect: { id: input.subcategoryId } },
           complexity: null,
           priority: null,
           status: 'TRIAGE',

@@ -2,14 +2,16 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Ticket,
+  TicketFilters,
   TicketStatus,
   TICKET_STATUSES,
   UserPublic,
   isStaffRole,
 } from '@chamados/shared';
 import { useAuth } from '@/auth/auth-context';
-import { useAssignTicket, useTickets, useUpdateStatus } from '@/features/tickets/api';
+import { useAssignTicket, useTickets, useTicketStats, useUpdateStatus } from '@/features/tickets/api';
 import { useUsers } from '@/features/users/api';
+import { useCategories } from '@/features/categories/api';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
@@ -17,7 +19,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { KpiCard } from '@/components/KpiCard';
 import { STATUS_LABEL } from '@/lib/labels';
 
-const DONE: TicketStatus[] = ['RESOLVED', 'CLOSED'];
+const PAGE_SIZE = 20;
 // Status que dá para definir rápido pelo dashboard (resolver coisas simples sem abrir o chamado).
 const QUICK_STATUSES: TicketStatus[] = ['TRIAGE', 'IN_PROGRESS', 'RESOLVED'];
 
@@ -100,19 +102,36 @@ export function DashboardPage() {
   const staffUsers = allUsers?.filter((u) => isStaffRole(u.role)) ?? [];
   // OPERATOR não abre chamados (só atende); USER e ADMIN sim.
   const canCreate = user?.role !== 'OPERATOR';
-  // 'ACTIVE' (padrão) = só chamados em aberto/andamento; '' = todos; ou um status específico.
-  const [status, setStatus] = useState<TicketStatus | '' | 'ACTIVE'>('ACTIVE');
-  const { data: tickets, isLoading } = useTickets({
-    status: status === 'ACTIVE' || status === '' ? undefined : status,
-  });
+  const { data: categories } = useCategories();
 
-  const all = tickets ?? [];
-  // Visão padrão "limpa": esconde resolvidos/concluídos até o usuário filtrar.
-  const visible = status === 'ACTIVE' ? all.filter((t) => !DONE.includes(t.status)) : all;
-  const kpis = {
-    triagem: all.filter((t) => t.status === 'TRIAGE').length,
-    abertos: all.filter((t) => t.status === 'OPEN' || t.status === 'IN_PROGRESS').length,
-    resolvidos: all.filter((t) => DONE.includes(t.status)).length,
+  // 'ACTIVE' (padrão) = só não-encerrados; '' = todos; ou um status específico.
+  const [status, setStatus] = useState<TicketStatus | '' | 'ACTIVE'>('ACTIVE');
+  const [categoryId, setCategoryId] = useState('');
+  const [page, setPage] = useState(1);
+
+  const filters: TicketFilters = {
+    status: status !== 'ACTIVE' && status !== '' ? status : undefined,
+    scope: status === 'ACTIVE' ? 'active' : status === '' ? 'all' : undefined,
+    categoryId: categoryId || undefined,
+    page,
+    pageSize: PAGE_SIZE,
+  };
+  const { data, isLoading } = useTickets(filters);
+  // KPIs vêm do servidor (groupBy), não da página carregada.
+  const { data: stats } = useTicketStats(isStaff);
+
+  const items = data?.items ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  // Mudar qualquer filtro reinicia para a 1ª página.
+  const changeStatus = (v: TicketStatus | '' | 'ACTIVE') => {
+    setStatus(v);
+    setPage(1);
+  };
+  const changeCategory = (v: string) => {
+    setCategoryId(v);
+    setPage(1);
   };
 
   return (
@@ -134,17 +153,18 @@ export function DashboardPage() {
 
       {isStaff && (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-          <KpiCard label="Em triagem" value={kpis.triagem} />
-          <KpiCard label="Abertos" value={kpis.abertos} />
-          <KpiCard label="Resolvidos" value={kpis.resolvidos} />
+          <KpiCard label="Em triagem" value={stats?.triagem ?? 0} />
+          <KpiCard label="Abertos" value={stats?.abertos ?? 0} />
+          <KpiCard label="Resolvidos" value={stats?.resolvidos ?? 0} />
         </div>
       )}
 
       <div className="flex flex-col gap-3 sm:flex-row">
         <div className="sm:w-48">
           <Select
+            aria-label="Filtrar por status"
             value={status}
-            onChange={(e) => setStatus(e.target.value as TicketStatus | '' | 'ACTIVE')}
+            onChange={(e) => changeStatus(e.target.value as TicketStatus | '' | 'ACTIVE')}
           >
             <option value="ACTIVE">Em aberto</option>
             <option value="">Todos os status</option>
@@ -155,11 +175,25 @@ export function DashboardPage() {
             ))}
           </Select>
         </div>
+        <div className="sm:w-56">
+          <Select
+            aria-label="Filtrar por categoria"
+            value={categoryId}
+            onChange={(e) => changeCategory(e.target.value)}
+          >
+            <option value="">Todas as categorias</option>
+            {categories?.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
+        </div>
       </div>
 
       {isLoading ? (
         <p className="text-gray-500">Carregando...</p>
-      ) : visible.length === 0 ? (
+      ) : items.length === 0 ? (
         <Card className="p-8 text-center text-gray-500">
           {status === 'ACTIVE' ? 'Nenhum chamado em aberto.' : 'Nenhum chamado encontrado.'}
         </Card>
@@ -169,7 +203,7 @@ export function DashboardPage() {
             <table className="w-full text-sm">
               <thead className="bg-grena/5 text-left text-xs uppercase text-grena">
                 <tr>
-                  <th className="px-4 py-3">Título</th>
+                  <th className="px-4 py-3">Assunto</th>
                   <th className="px-4 py-3">Prazo</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Aberto em</th>
@@ -177,7 +211,7 @@ export function DashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {visible.map((t) => (
+                {items.map((t) => (
                   <tr key={t.id} className="hover:bg-grena/5">
                     <td className="px-4 py-3">
                       <Link className="font-medium text-grena hover:underline" to={`/tickets/${t.id}`}>
@@ -215,7 +249,7 @@ export function DashboardPage() {
           </Card>
 
           <div className="space-y-3 md:hidden">
-            {visible.map((t) => (
+            {items.map((t) => (
               <Card key={t.id} className="p-4">
                 <Link to={`/tickets/${t.id}`} className="block">
                   <div className="mb-2 font-medium text-gray-900">
@@ -246,6 +280,31 @@ export function DashboardPage() {
                 )}
               </Card>
             ))}
+          </div>
+
+          {/* Paginação real: a lista nunca carrega tudo de uma vez. */}
+          <div className="flex items-center justify-between gap-3 text-sm text-gray-600">
+            <span>
+              {total} chamado(s) · página {page} de {totalPages}
+            </span>
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                className="min-h-0 px-3 py-1"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                Anterior
+              </Button>
+              <Button
+                variant="secondary"
+                className="min-h-0 px-3 py-1"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Próxima
+              </Button>
+            </div>
           </div>
         </>
       )}

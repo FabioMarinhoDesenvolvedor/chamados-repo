@@ -26,6 +26,7 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { StatusBadge } from '@/components/StatusBadge';
+import { CategoryIcon } from '@/components/CategoryIcon';
 import { Spinner } from '@/components/ui/spinner';
 import { AttachmentGallery } from '@/components/AttachmentGallery';
 import { AttachmentInput } from '@/components/AttachmentInput';
@@ -108,6 +109,12 @@ export function TicketDetailPage() {
         <h2 className="text-2xl font-bold text-grena-dark">{ticket.title}</h2>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <StatusBadge status={ticket.status} />
+          {ticket.subcategory && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-grena/5 px-2 py-0.5 text-xs font-medium text-grena">
+              <CategoryIcon name={ticket.subcategory.icon} className="h-3.5 w-3.5" />
+              {ticket.category?.name} › {ticket.subcategory.name}
+            </span>
+          )}
           {isStaff && (
             <span className="text-xs text-gray-500">
               Complexidade: {complexityLabel(ticket.complexity)}
@@ -126,7 +133,9 @@ export function TicketDetailPage() {
 
       <Card className="p-6">
         <h3 className="mb-2 text-sm font-semibold text-grena">Descrição</h3>
-        <p className="whitespace-pre-wrap text-sm text-gray-800">{ticket.description}</p>
+        <p className="whitespace-pre-wrap text-sm text-gray-800">
+          {ticket.description || <span className="text-gray-400">Sem descrição complementar.</span>}
+        </p>
         <dl className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
           <div>
             <dt className="text-gray-500">Departamento</dt>

@@ -8,11 +8,14 @@ import { AuthUser } from '../../common/decorators/current-user.decorator';
 function makeService(over: {
   ticket?: Record<string, unknown>;
   assignee?: Record<string, unknown> | null;
+  subcategory?: Record<string, unknown> | null;
+  department?: Record<string, unknown> | null;
 }) {
   const repo = {
     findById: async () => over.ticket ?? null,
     assign: async (id: string, assignedTo: string) => ({ id, assignedTo }),
     closeWithRating: async (args: unknown) => args,
+    createWithHistory: async (input: Record<string, unknown>) => ({ id: 'new', ...input }),
     addComment: async (ticketId: string, authorId: string, body: string) => ({
       id: 'c1',
       ticketId,
@@ -32,7 +35,9 @@ function makeService(over: {
     }),
   } as any;
   const users = { findById: async () => over.assignee ?? null } as any;
-  return new TicketsService(repo, {} as any, users, {} as any, {} as any);
+  const departments = { findById: async () => over.department ?? { id: 'dep1', priorityWeight: 3 } } as any;
+  const categories = { findSubcategory: async () => over.subcategory ?? null } as any;
+  return new TicketsService(repo, departments, users, {} as any, {} as any, categories);
 }
 
 const operator: AuthUser = { userId: 'op1', email: 'op@x', role: 'OPERATOR', mustChangePassword: false };
@@ -72,6 +77,33 @@ test('close: o solicitante pode concluir um chamado RESOLVED', async () => {
   const svc = makeService({ ticket: { id: 't1', requesterId: 'req1', status: 'RESOLVED' } });
   const r = await svc.close('t1', 5, requester);
   assert.equal((r as any).id, 't1');
+});
+
+// ---- create (categorização guiada) ----
+const subRedefinicao = {
+  id: 's1',
+  categoryId: 'c1',
+  name: 'Redefinição de senha',
+  category: { id: 'c1', name: 'Acesso e Senhas' },
+};
+
+test('create: deriva o título "Categoria › Subcategoria" e valida a subcategoria', async () => {
+  const svc = makeService({ subcategory: subRedefinicao });
+  const r: any = await svc.create(
+    { categoryId: 'c1', subcategoryId: 's1', departmentId: 'dep1' } as any,
+    admin,
+  );
+  assert.equal(r.title, 'Acesso e Senhas › Redefinição de senha');
+  assert.equal(r.categoryId, 'c1');
+  assert.equal(r.subcategoryId, 's1');
+});
+
+test('create: rejeita subcategoria que não pertence à categoria informada', async () => {
+  const svc = makeService({ subcategory: subRedefinicao });
+  await assert.rejects(
+    () => svc.create({ categoryId: 'OUTRA', subcategoryId: 's1', departmentId: 'dep1' } as any, admin),
+    (e) => e instanceof BadRequestException,
+  );
 });
 
 // ---- addComment (bloqueio em chamado encerrado) ----

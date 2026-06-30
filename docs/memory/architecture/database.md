@@ -29,8 +29,10 @@ PostgreSQL
 | Coluna         | Tipo         | Notas                                  |
 |----------------|--------------|----------------------------------------|
 | id             | UUID         | PK                                     |
-| title          | VARCHAR(255) |                                        |
-| description    | TEXT         |                                        |
+| title          | VARCHAR(255) | No fluxo novo é DERIVADO ("Categoria › Subcategoria" = "Assunto"); antigos mantêm o título livre |
+| description    | TEXT         | NULLABLE — descrição complementar opcional (categorização é a entrada principal) |
+| category_id    | UUID         | NULLABLE — FK → ticket_categories (ON DELETE SET NULL). Antigos ficam NULL |
+| subcategory_id | UUID         | NULLABLE — FK → ticket_subcategories (ON DELETE SET NULL) |
 | complexity     | ENUM         | NULLABLE — definida na triagem pelo admin. 'low' \| 'medium' \| 'high' \| 'critical' |
 | department_id  | UUID         | FK → departments (do solicitante)      |
 | priority       | ENUM         | NULLABLE — calculada só após triagem. 'low' \| 'medium' \| 'high' \| 'urgent' |
@@ -42,6 +44,18 @@ PostgreSQL
 | created_at     | TIMESTAMP    |                                        |
 | updated_at     | TIMESTAMP    |                                        |
 | resolved_at    | TIMESTAMP    | nullable                               |
+
+### ticket_categories  ·  ### ticket_subcategories (categorização guiada — blocos)
+Dados de REFERÊNCIA, populados pela própria migration `add_ticket_categories` (não pelo seed
+de dev), para produção receber via `prisma migrate deploy`. 6 categorias + 33 subcategorias.
+| Coluna     | Tipo         | Notas                                            |
+|------------|--------------|--------------------------------------------------|
+| id         | UUID         | PK                                               |
+| category_id| UUID         | (subcategories) FK → ticket_categories (RESTRICT)|
+| slug       | TEXT         | categories: UNIQUE; subcategories: UNIQUE(category_id, slug) |
+| name       | TEXT         | rótulo exibido                                   |
+| icon       | TEXT         | nome do ícone **lucide-react** (resolvido no front via registry) |
+| sort_order | INTEGER      | ordem de exibição no grid                        |
 
 ### ticket_status_history
 | Coluna       | Tipo      | Notas                                   |
@@ -94,8 +108,19 @@ Regra de não-lido (`hasUnread`): `last_activity_by != usuário` E (`sem read_st
 - Cores: verde (low), amarelo (medium), vermelho (high), roxo (urgent)
 - STATUS da matriz: APROVADA (2026-06-25)
 
+## Listagem e KPIs (performance — servidor 4 núcleos)
+- **Paginação real** em `GET /tickets` (`page`/`pageSize`, default 20; `scope=active` esconde
+  encerrados). Retorna `{ items, total, page, pageSize }` — NUNCA carrega tudo.
+- **KPIs no servidor**: `GET /tickets/stats` (groupBy status). Unread: `GET /tickets/unread/count`
+  via `NOT EXISTS` raw (anti-join) — não carrega chamados.
+- Listagem/detalhe/relatório usam `include` de categoria/subcategoria (sem N+1).
+- EXPLAIN ANALYZE (5k linhas): filtro seletivo por category_id → Index Scan (~0.1ms); count →
+  Index Only Scan; stats → HashAggregate (~2ms); unread → Hash Anti Join (~3ms).
+
 ## Índices Previstos
 - tickets(status, priority) — listagem filtrada
+- tickets(category_id) · tickets(subcategory_id) — filtro por categoria
+- ticket_subcategories(category_id) + UNIQUE(category_id, slug)
 - tickets(requester_id) — meus chamados
 - tickets(assigned_to) — chamados atribuídos
 - ticket_status_history(ticket_id) — timeline do chamado

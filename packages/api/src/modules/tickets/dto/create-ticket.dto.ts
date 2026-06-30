@@ -1,13 +1,19 @@
-import { IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
+import { IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 
 export class CreateTicketDto {
-  @IsString()
-  @MinLength(3)
-  title!: string;
+  // Categorização guiada (entrada principal, substitui o título livre).
+  @IsUUID()
+  categoryId!: string;
 
+  @IsUUID()
+  subcategoryId!: string;
+
+  // Descrição complementar opcional (detalhes dentro da subcategoria).
+  @IsOptional()
   @IsString()
   @MinLength(3)
-  description!: string;
+  @MaxLength(2000)
+  description?: string;
 
   @IsUUID()
   departmentId!: string;

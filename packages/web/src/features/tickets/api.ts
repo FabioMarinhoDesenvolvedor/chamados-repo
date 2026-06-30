@@ -4,20 +4,33 @@ import {
   AssignTicketInput,
   CloseTicketInput,
   CreateTicketInput,
+  Paginated,
   Ticket,
   TicketAttachment,
   TicketDetail,
   TicketFilters,
+  TicketStats,
   UnreadCount,
   UpdateTicketInput,
   UpdateTicketStatusInput,
 } from '@chamados/shared';
 import { api } from '@/lib/api';
 
+// Listagem PAGINADA: retorna { items, total, page, pageSize }.
 export function useTickets(filters: TicketFilters) {
   return useQuery({
     queryKey: ['tickets', filters],
-    queryFn: async () => (await api.get<Ticket[]>('/tickets', { params: filters })).data,
+    queryFn: async () => (await api.get<Paginated<Ticket>>('/tickets', { params: filters })).data,
+    placeholderData: (prev) => prev, // mantém a página anterior enquanto carrega a próxima
+  });
+}
+
+// KPIs do dashboard calculados no servidor.
+export function useTicketStats(enabled: boolean) {
+  return useQuery({
+    queryKey: ['tickets-stats'],
+    queryFn: async () => (await api.get<TicketStats>('/tickets/stats')).data,
+    enabled,
   });
 }
 
@@ -49,7 +62,10 @@ export function useCreateTicket() {
   return useMutation({
     mutationFn: async (input: CreateTicketInput) =>
       (await api.post<Ticket>('/tickets', input)).data,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['tickets'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tickets'] });
+      qc.invalidateQueries({ queryKey: ['tickets-stats'] });
+    },
     meta: { successMessage: 'Chamado aberto' },
   });
 }
@@ -101,6 +117,7 @@ export function useUpdateStatus(id: string) {
       qc.setQueryData<TicketDetail>(['ticket', id], (old) => (old ? { ...old, ...updated } : old));
       qc.invalidateQueries({ queryKey: ['ticket', id] });
       qc.invalidateQueries({ queryKey: ['tickets'] });
+      qc.invalidateQueries({ queryKey: ['tickets-stats'] });
       qc.invalidateQueries({ queryKey: ['unread-count'] });
     },
     meta: { successMessage: 'Status atualizado' },
@@ -113,10 +130,12 @@ export function useAssignTicket(id: string) {
     mutationFn: async (input: AssignTicketInput) =>
       (await api.patch<Ticket>(`/tickets/${id}/assign`, input)).data,
     onSuccess: (updated) => {
-      // Reflete o novo responsável na hora: na lista do dashboard e no detalhe (sem esperar
-      // o refetch — antes só atualizava ao sair e voltar da página).
-      qc.setQueriesData<Ticket[]>({ queryKey: ['tickets'] }, (old) =>
-        old?.map((t) => (t.id === id ? { ...t, ...updated } : t)),
+      // Reflete o novo responsável na hora: na lista paginada do dashboard e no detalhe
+      // (sem esperar o refetch — antes só atualizava ao sair e voltar da página).
+      qc.setQueriesData<Paginated<Ticket>>({ queryKey: ['tickets'] }, (old) =>
+        old
+          ? { ...old, items: old.items.map((t) => (t.id === id ? { ...t, ...updated } : t)) }
+          : old,
       );
       qc.setQueryData<TicketDetail>(['ticket', id], (old) => (old ? { ...old, ...updated } : old));
       qc.invalidateQueries({ queryKey: ['ticket', id] });
@@ -147,6 +166,7 @@ export function useCloseTicket(id: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['ticket', id] });
       qc.invalidateQueries({ queryKey: ['tickets'] });
+      qc.invalidateQueries({ queryKey: ['tickets-stats'] });
       qc.invalidateQueries({ queryKey: ['unread-count'] });
     },
     meta: { successMessage: 'Chamado concluído' },

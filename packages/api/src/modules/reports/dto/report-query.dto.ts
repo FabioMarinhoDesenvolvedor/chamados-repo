@@ -14,4 +14,12 @@ export class ReportQueryDto {
   @IsOptional()
   @IsDateString()
   to?: string;
+
+  @IsOptional()
+  @IsUUID()
+  categoryId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  subcategoryId?: string;
 }

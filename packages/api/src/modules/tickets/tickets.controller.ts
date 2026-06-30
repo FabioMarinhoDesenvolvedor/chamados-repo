@@ -51,6 +51,11 @@ export class TicketsController {
     return this.tickets.unreadCount(user);
   }
 
+  @Get('stats')
+  stats(@CurrentUser() user: AuthUser) {
+    return this.tickets.stats(user);
+  }
+
   @Get(':id')
   detail(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.tickets.detail(id, user);

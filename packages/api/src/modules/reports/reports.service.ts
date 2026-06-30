@@ -16,14 +16,25 @@ export class ReportsService {
     const createdAt: Prisma.DateTimeFilter | undefined =
       from || to ? { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } : undefined;
 
+    // Filtro por categoria/subcategoria (aplicado direto no ticket ou via relação).
+    const categoryWhere: Prisma.TicketWhereInput = {
+      ...(query.categoryId ? { categoryId: query.categoryId } : {}),
+      ...(query.subcategoryId ? { subcategoryId: query.subcategoryId } : {}),
+    };
+    const hasCategoryFilter = Object.keys(categoryWhere).length > 0;
+    const ticketRelationFilter = hasCategoryFilter ? { ticket: categoryWhere } : {};
+
     const [tickets, statusChanges, comments] = await Promise.all([
       this.prisma.ticket.findMany({
         where: {
           ...(userId ? { requesterId: userId } : {}),
           ...(createdAt ? { createdAt } : {}),
+          ...categoryWhere,
         },
         include: {
           requester: true,
+          category: true,
+          subcategory: true,
           attachments: { where: { commentId: null }, orderBy: { createdAt: 'asc' } },
         },
       }),
@@ -33,15 +44,24 @@ export class ReportsService {
           fromStatus: { not: null },
           ...(userId ? { changedBy: userId } : {}),
           ...(createdAt ? { createdAt } : {}),
+          ...ticketRelationFilter,
         },
-        include: { ticket: true, changedByUser: true },
+        include: {
+          ticket: { include: { category: true, subcategory: true } },
+          changedByUser: true,
+        },
       }),
       this.prisma.ticketComment.findMany({
         where: {
           ...(userId ? { authorId: userId } : {}),
           ...(createdAt ? { createdAt } : {}),
+          ...ticketRelationFilter,
         },
-        include: { ticket: true, author: true, attachments: { orderBy: { createdAt: 'asc' } } },
+        include: {
+          ticket: { include: { category: true, subcategory: true } },
+          author: true,
+          attachments: { orderBy: { createdAt: 'asc' } },
+        },
       }),
     ]);
 
@@ -55,6 +75,8 @@ export class ReportsService {
         ticketTitle: t.title,
         ticketStatus: t.status,
         ticketPriority: t.priority,
+        ticketCategory: t.category?.name ?? null,
+        ticketSubcategory: t.subcategory?.name ?? null,
         fromStatus: null,
         toStatus: null,
         comment: null,
@@ -72,6 +94,8 @@ export class ReportsService {
         ticketTitle: s.ticket.title,
         ticketStatus: s.ticket.status,
         ticketPriority: s.ticket.priority,
+        ticketCategory: s.ticket.category?.name ?? null,
+        ticketSubcategory: s.ticket.subcategory?.name ?? null,
         fromStatus: s.fromStatus,
         toStatus: s.toStatus,
         comment: null,
@@ -86,6 +110,8 @@ export class ReportsService {
         ticketTitle: c.ticket.title,
         ticketStatus: c.ticket.status,
         ticketPriority: c.ticket.priority,
+        ticketCategory: c.ticket.category?.name ?? null,
+        ticketSubcategory: c.ticket.subcategory?.name ?? null,
         fromStatus: null,
         toStatus: null,
         comment: c.body,

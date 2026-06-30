@@ -18,6 +18,16 @@
 - Projeção por papel (`hideByRole`): USER não vê prioridade/complexidade/nota; OPERATOR vê
   prioridade/complexidade mas NÃO a nota (avaliação é só do admin); ADMIN vê tudo.
 
+## Abertura guiada por categorias (blocos)
+- O usuário NÃO digita título livre: escolhe **categoria (bloco)** → **subcategoria**, ambas
+  com ícone (lucide), e opcionalmente uma **descrição complementar** (texto livre opcional).
+- O **"Assunto" (title) é derivado** = "Categoria › Subcategoria". `category_id`/`subcategory_id`
+  ficam no chamado. Backend valida que a subcategoria pertence à categoria.
+- Categorias são INDEPENDENTES do departamento (departamento segue sendo o setor do solicitante).
+- Chamados antigos (sem categoria) continuam válidos (campos nullable) e exibem o título antigo.
+- 6 blocos / 33 subcategorias são dado de referência (seed na migration). Filtro por categoria
+  disponível no dashboard e no relatório.
+
 ## Triagem (complexidade definida pelo admin/TI)
 - O **usuário NÃO escolhe complexidade** ao abrir o chamado (só título, descrição, departamento).
 - Chamado nasce no status **`triage` ("Em triagem")**, com `complexity` e `priority` nulos.

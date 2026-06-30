@@ -72,7 +72,12 @@ model Department {
 model Ticket {
   id           String       @id @default(uuid())
   title        String
-  description  String
+  description  String?
+  // Categorização guiada (nullable: chamados antigos seguem só com texto livre).
+  categoryId    String?            @map("category_id")
+  category      TicketCategory?    @relation(fields: [categoryId], references: [id])
+  subcategoryId String?            @map("subcategory_id")
+  subcategory   TicketSubcategory? @relation(fields: [subcategoryId], references: [id])
   complexity   Complexity?
   priority     Priority?
   status       TicketStatus @default(TRIAGE)
@@ -100,7 +105,40 @@ model Ticket {
   @@index([status, priority])
   @@index([requesterId])
   @@index([assignedTo])
+  @@index([categoryId])
+  @@index([subcategoryId])
   @@map("tickets")
+}
+
+model TicketCategory {
+  id        String   @id @default(uuid())
+  slug      String   @unique
+  name      String
+  icon      String // nome do ícone lucide-react
+  sortOrder Int      @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  subcategories TicketSubcategory[]
+  tickets       Ticket[]
+
+  @@map("ticket_categories")
+}
+
+model TicketSubcategory {
+  id         String         @id @default(uuid())
+  categoryId String         @map("category_id")
+  category   TicketCategory @relation(fields: [categoryId], references: [id])
+  slug       String
+  name       String
+  icon       String
+  sortOrder  Int            @map("sort_order")
+  createdAt  DateTime       @default(now()) @map("created_at")
+
+  tickets Ticket[]
+
+  @@unique([categoryId, slug])
+  @@index([categoryId])
+  @@map("ticket_subcategories")
 }
 
 model TicketComment {

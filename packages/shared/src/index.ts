@@ -17,6 +17,9 @@ export {
 export type {
   UserPublic,
   Department,
+  TicketCategory,
+  TicketSubcategory,
+  CategoryWithSubcategories,
   Ticket,
   TicketComment,
   TicketAttachment,
@@ -36,6 +39,8 @@ export type {
   UpdateUserInput,
   CreateDepartmentInput,
   TicketFilters,
+  Paginated,
+  TicketStats,
   UnreadCount,
   ActivityType,
   ActivityAttachment,
