@@ -20,6 +20,7 @@
 - decisions/notificacao-polling.md
 - decisions/ui-theme-grena.md
 - decisions/anexos-imagens.md
+- decisions/terceiro-nivel-categoria.md
 
 ## Gotchas
 - gotchas/responsividade.md
@@ -41,4 +42,5 @@
 - handoffs/sessao-2026-06-30.md
 - handoffs/sessao-2026-06-30-correcoes.md
 - handoffs/sessao-2026-06-30-categorias.md
-- handoffs/sessao-2026-07-01-backlog.md  ← PENDÊNCIAS p/ próxima sessão (3º nível + SLA/complexidade automáticos)
+- handoffs/sessao-2026-07-01-backlog.md  ← PENDÊNCIAS (Item 2: SLA/complexidade automáticos)
+- handoffs/sessao-2026-07-01-terceiro-nivel.md  ← Item 1 entregue (3º nível de categoria/detalhe); deploy pendente

@@ -27,6 +27,12 @@
 - Chamados antigos (sem categoria) continuam válidos (campos nullable) e exibem o título antigo.
 - 6 blocos / 33 subcategorias são dado de referência (seed na migration). Filtro por categoria
   disponível no dashboard e no relatório.
+- **3º nível ("detalhe")**: subcategorias podem ter 0..N detalhes (data-driven, seed na
+  migration). Quando a subcategoria tem detalhes, escolher um é **obrigatório**; quando não
+  tem, o fluxo vai direto para a descrição. O "Assunto" derivado passa a
+  "Categoria › Subcategoria › Detalhe" quando houver detalhe. `tickets.detail_option_id`
+  é nullable (chamados antigos/2 níveis = NULL). A coluna `base_complexity` (subcategoria e
+  detalhe) existe para o cálculo automático futuro (Item 2) e hoje é NULL.
 
 ## Triagem (complexidade definida pelo admin/TI)
 - O **usuário NÃO escolhe complexidade** ao abrir o chamado (só título, descrição, departamento).
