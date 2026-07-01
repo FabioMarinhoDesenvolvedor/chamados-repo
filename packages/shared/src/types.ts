@@ -40,6 +40,15 @@ export interface TicketCategory {
   sortOrder: number;
 }
 
+export interface TicketDetailOption {
+  id: string;
+  subcategoryId: string;
+  slug: string;
+  name: string;
+  icon: string;
+  sortOrder: number;
+}
+
 export interface TicketSubcategory {
   id: string;
   categoryId: string;
@@ -47,6 +56,8 @@ export interface TicketSubcategory {
   name: string;
   icon: string;
   sortOrder: number;
+  // 3º nível opcional (data-driven). Vazio = subcategoria sem detalhe.
+  details?: TicketDetailOption[];
 }
 
 export interface CategoryWithSubcategories extends TicketCategory {
@@ -62,6 +73,8 @@ export interface Ticket {
   // Nomes/ícones da categoria embutidos para exibição (sem N+1 — vêm de um include).
   category?: TicketCategory | null;
   subcategory?: TicketSubcategory | null;
+  detailOptionId: string | null;
+  detailOption?: TicketDetailOption | null;
   complexity: Complexity | null;
   priority: Priority | null;
   status: TicketStatus;
@@ -137,6 +150,8 @@ export interface CreateTicketInput {
   // Categorização guiada (substitui o título livre como entrada principal).
   categoryId: string;
   subcategoryId: string;
+  // 3º nível — obrigatório quando a subcategoria escolhida tiver detalhes.
+  detailOptionId?: string;
   // Descrição complementar opcional (detalhes do problema dentro da subcategoria).
   description?: string;
   departmentId: string;
