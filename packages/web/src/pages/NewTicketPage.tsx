@@ -1,7 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ChevronRight } from 'lucide-react';
-import { CategoryWithSubcategories, TicketSubcategory } from '@chamados/shared';
+import { CategoryWithSubcategories, TicketDetailOption, TicketSubcategory } from '@chamados/shared';
 import { useAuth } from '@/auth/auth-context';
 import { useDepartments } from '@/features/departments/api';
 import { useUsers } from '@/features/users/api';
@@ -55,6 +55,7 @@ export function NewTicketPage() {
 
   const [category, setCategory] = useState<CategoryWithSubcategories | null>(null);
   const [subcategory, setSubcategory] = useState<TicketSubcategory | null>(null);
+  const [detailOption, setDetailOption] = useState<TicketDetailOption | null>(null);
   const [description, setDescription] = useState('');
   const [departmentId, setDepartmentId] = useState('');
   const [requesterId, setRequesterId] = useState('');
@@ -64,6 +65,11 @@ export function NewTicketPage() {
   const userDeptName = departments?.find((d) => d.id === user?.departmentId)?.name ?? '';
   const userHasNoDept = !isAdmin && !user?.departmentId;
   const submitting = createTicket.isPending || uploadAttachments.isPending;
+
+  const subDetails = subcategory?.details ?? [];
+  const needsDetail = subDetails.length > 0;
+  // Só mostra o form quando: subcategoria sem detalhe, OU já escolheu um detalhe.
+  const showForm = !!subcategory && (!needsDetail || !!detailOption);
 
   if (blockOperator) return <Navigate to="/" replace />;
 
@@ -77,6 +83,12 @@ export function NewTicketPage() {
   function backToCategories() {
     setCategory(null);
     setSubcategory(null);
+    setDetailOption(null);
+  }
+
+  function selectSubcategory(s: TicketSubcategory) {
+    setSubcategory(s);
+    setDetailOption(null);
   }
 
   async function onSubmit(e: FormEvent) {
@@ -89,6 +101,7 @@ export function NewTicketPage() {
       const ticket = await createTicket.mutateAsync({
         categoryId: category.id,
         subcategoryId: subcategory.id,
+        detailOptionId: detailOption?.id,
         description: description.trim() || undefined,
         departmentId: dept,
         requesterId: isAdmin && requesterId ? requesterId : undefined,
@@ -133,7 +146,19 @@ export function NewTicketPage() {
         {subcategory && (
           <>
             <ChevronRight className="h-4 w-4 text-gray-400" />
-            <span className="font-medium text-gray-800">{subcategory.name}</span>
+            <button
+              type="button"
+              onClick={() => setDetailOption(null)}
+              className={detailOption ? 'text-grena hover:underline' : 'font-medium text-gray-800'}
+            >
+              {subcategory.name}
+            </button>
+          </>
+        )}
+        {detailOption && (
+          <>
+            <ChevronRight className="h-4 w-4 text-gray-400" />
+            <span className="font-medium text-gray-800">{detailOption.name}</span>
           </>
         )}
       </nav>
@@ -168,24 +193,44 @@ export function NewTicketPage() {
           </Button>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {category.subcategories.map((s) => (
-              <BlockCard key={s.id} icon={s.icon} label={s.name} onClick={() => setSubcategory(s)} />
+              <BlockCard key={s.id} icon={s.icon} label={s.name} onClick={() => selectSubcategory(s)} />
             ))}
           </div>
         </div>
-      ) : (
-        // Passo 3: detalhes (descrição opcional + dados do admin) e conclusão
+      ) : needsDetail && !detailOption ? (
+        // Passo 3: detalhes (3º nível) — obrigatório quando a subcategoria tem opções
+        <div className="space-y-4">
+          <Button variant="ghost" className="px-2" onClick={() => setSubcategory(null)}>
+            <ArrowLeft className="mr-1 h-4 w-4" /> Voltar para as subcategorias
+          </Button>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {subDetails.map((d) => (
+              <BlockCard key={d.id} icon={d.icon} label={d.name} onClick={() => setDetailOption(d)} />
+            ))}
+          </div>
+        </div>
+      ) : showForm ? (
+        // Passo 4: form (descrição opcional + anexos) — inalterado
         <Card className="p-6">
-          <Button variant="ghost" className="mb-4 px-2" onClick={() => setSubcategory(null)}>
-            <ArrowLeft className="mr-1 h-4 w-4" /> Trocar subcategoria
+          <Button
+            variant="ghost"
+            className="mb-4 px-2"
+            onClick={() => (needsDetail ? setDetailOption(null) : setSubcategory(null))}
+          >
+            <ArrowLeft className="mr-1 h-4 w-4" /> {needsDetail ? 'Trocar detalhe' : 'Trocar subcategoria'}
           </Button>
 
           <div className="mb-5 flex items-center gap-3 rounded-md bg-grena/5 p-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-grena/10 text-grena">
-              <CategoryIcon name={subcategory.icon} className="h-5 w-5" />
+              <CategoryIcon name={detailOption?.icon ?? subcategory.icon} className="h-5 w-5" />
             </span>
             <div>
-              <p className="text-xs text-gray-500">{category.name}</p>
-              <p className="text-sm font-semibold text-grena-dark">{subcategory.name}</p>
+              <p className="text-xs text-gray-500">
+                {category.name} › {subcategory.name}
+              </p>
+              <p className="text-sm font-semibold text-grena-dark">
+                {detailOption ? detailOption.name : subcategory.name}
+              </p>
             </div>
           </div>
 
@@ -261,7 +306,7 @@ export function NewTicketPage() {
             </div>
           </form>
         </Card>
-      )}
+      ) : null}
     </div>
   );
 }

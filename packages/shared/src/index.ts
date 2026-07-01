@@ -25,6 +25,7 @@ export type {
   TicketAttachment,
   TicketStatusHistory,
   TicketDetail,
+  TicketDetailOption,
   LoginInput,
   AuthResponse,
   ChangePasswordInput,
