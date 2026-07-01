@@ -8,6 +8,11 @@ export class CreateTicketDto {
   @IsUUID()
   subcategoryId!: string;
 
+  // 3º nível ("detalhe") — obrigatório quando a subcategoria escolhida tiver detalhes.
+  @IsOptional()
+  @IsUUID()
+  detailOptionId?: string;
+
   // Descrição complementar opcional (detalhes dentro da subcategoria).
   @IsOptional()
   @IsString()

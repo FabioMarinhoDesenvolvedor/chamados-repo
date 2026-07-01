@@ -85,6 +85,19 @@ const subRedefinicao = {
   categoryId: 'c1',
   name: 'Redefinição de senha',
   category: { id: 'c1', name: 'Acesso e Senhas' },
+  details: [],
+};
+
+// Subcategoria COM 3º nível (ex.: Monitor).
+const subMonitor = {
+  id: 's2',
+  categoryId: 'c2',
+  name: 'Monitor',
+  category: { id: 'c2', name: 'Computador e Equipamentos' },
+  details: [
+    { id: 'd1', name: 'Não liga' },
+    { id: 'd2', name: 'Sem imagem ou sinal' },
+  ],
 };
 
 test('create: deriva o título "Categoria › Subcategoria" e valida a subcategoria', async () => {
@@ -102,6 +115,54 @@ test('create: rejeita subcategoria que não pertence à categoria informada', as
   const svc = makeService({ subcategory: subRedefinicao });
   await assert.rejects(
     () => svc.create({ categoryId: 'OUTRA', subcategoryId: 's1', departmentId: 'dep1' } as any, admin),
+    (e) => e instanceof BadRequestException,
+  );
+});
+
+test('create: com detalhe válido deriva o título de 3 níveis e grava detailOptionId', async () => {
+  const svc = makeService({ subcategory: subMonitor });
+  const r: any = await svc.create(
+    { categoryId: 'c2', subcategoryId: 's2', detailOptionId: 'd1', departmentId: 'dep1' } as any,
+    admin,
+  );
+  assert.equal(r.title, 'Computador e Equipamentos › Monitor › Não liga');
+  assert.equal(r.detailOptionId, 'd1');
+});
+
+test('create: subcategoria com detalhes exige detailOptionId', async () => {
+  const svc = makeService({ subcategory: subMonitor });
+  await assert.rejects(
+    () => svc.create({ categoryId: 'c2', subcategoryId: 's2', departmentId: 'dep1' } as any, admin),
+    (e) => e instanceof BadRequestException,
+  );
+});
+
+test('create: rejeita detalhe que não pertence à subcategoria', async () => {
+  const svc = makeService({ subcategory: subMonitor });
+  await assert.rejects(
+    () => svc.create(
+      { categoryId: 'c2', subcategoryId: 's2', detailOptionId: 'OUTRO', departmentId: 'dep1' } as any,
+      admin,
+    ),
+    (e) => e instanceof BadRequestException,
+  );
+});
+
+test('create: subcategoria sem detalhes ignora detailOptionId ausente (regressão) e rejeita detalhe indevido', async () => {
+  const ok = makeService({ subcategory: subRedefinicao });
+  const r: any = await ok.create(
+    { categoryId: 'c1', subcategoryId: 's1', departmentId: 'dep1' } as any,
+    admin,
+  );
+  assert.equal(r.title, 'Acesso e Senhas › Redefinição de senha');
+  assert.equal(r.detailOptionId, null);
+
+  const bad = makeService({ subcategory: subRedefinicao });
+  await assert.rejects(
+    () => bad.create(
+      { categoryId: 'c1', subcategoryId: 's1', detailOptionId: 'd1', departmentId: 'dep1' } as any,
+      admin,
+    ),
     (e) => e instanceof BadRequestException,
   );
 });

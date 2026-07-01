@@ -18,7 +18,7 @@ export class TicketsRepository {
       orderBy: [{ createdAt: 'desc' }],
       skip,
       take,
-      include: { category: true, subcategory: true },
+      include: { category: true, subcategory: true, detailOption: true },
     });
   }
 
@@ -61,6 +61,7 @@ export class TicketsRepository {
         department: true,
         category: true,
         subcategory: true,
+        detailOption: true,
         comments: {
           orderBy: { createdAt: 'asc' },
           include: {
@@ -97,6 +98,7 @@ export class TicketsRepository {
     description: string | null;
     categoryId: string;
     subcategoryId: string;
+    detailOptionId: string | null;
     departmentId: string;
     requesterId: string;
   }) {
@@ -107,6 +109,9 @@ export class TicketsRepository {
           description: input.description,
           category: { connect: { id: input.categoryId } },
           subcategory: { connect: { id: input.subcategoryId } },
+          detailOption: input.detailOptionId
+            ? { connect: { id: input.detailOptionId } }
+            : undefined,
           complexity: null,
           priority: null,
           status: 'TRIAGE',

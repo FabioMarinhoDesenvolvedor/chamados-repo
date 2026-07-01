@@ -80,19 +80,41 @@ export class TicketsService {
     const department = await this.departments.findById(departmentId);
     if (!department) throw new NotFoundException('Departamento não encontrado');
 
-    // Categorização guiada: valida que a subcategoria pertence à categoria informada
-    // e deriva o "Assunto" (título) a partir dos rótulos — sem texto livre obrigatório.
+    // Categorização guiada: valida que a subcategoria pertence à categoria e deriva o
+    // "Assunto" (título). O 3º nível ("detalhe") é obrigatório quando a subcategoria tiver
+    // detalhes, e proibido quando não tiver — mantém o dado consistente.
     const subcategory = await this.categories.findSubcategory(dto.subcategoryId);
     if (!subcategory || subcategory.categoryId !== dto.categoryId) {
       throw new BadRequestException('Subcategoria inválida para a categoria informada');
     }
-    const title = `${subcategory.category.name} › ${subcategory.name}`;
+
+    const details = subcategory.details ?? [];
+    let detailOptionId: string | null = null;
+    let detailName: string | null = null;
+    if (details.length > 0) {
+      if (!dto.detailOptionId) {
+        throw new BadRequestException('Selecione um detalhe para esta subcategoria');
+      }
+      const detail = details.find((d) => d.id === dto.detailOptionId);
+      if (!detail) {
+        throw new BadRequestException('Detalhe inválido para a subcategoria informada');
+      }
+      detailOptionId = detail.id;
+      detailName = detail.name;
+    } else if (dto.detailOptionId) {
+      throw new BadRequestException('Esta subcategoria não aceita detalhe');
+    }
+
+    const title = detailName
+      ? `${subcategory.category.name} › ${subcategory.name} › ${detailName}`
+      : `${subcategory.category.name} › ${subcategory.name}`;
 
     return this.repo.createWithHistory({
       title,
       description: dto.description ?? null,
       categoryId: dto.categoryId,
       subcategoryId: dto.subcategoryId,
+      detailOptionId,
       departmentId,
       requesterId,
     });
