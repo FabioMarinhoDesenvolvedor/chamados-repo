@@ -109,15 +109,28 @@ export class TicketsService {
       ? `${subcategory.category.name} › ${subcategory.name} › ${detailName}`
       : `${subcategory.category.name} › ${subcategory.name}`;
 
-    return this.repo.createWithHistory({
+    // Prioridade/SLA automáticos na abertura: a complexidade-base vem da categorização
+    // (detalhe > subcategoria > MÉDIA como padrão) e a prioridade é derivada pela matriz
+    // com o peso do setor. O chamado NASCE priorizado — sem depender de triagem manual.
+    const detail = detailOptionId ? details.find((d) => d.id === detailOptionId) : null;
+    const complexity: Complexity =
+      detail?.baseComplexity ?? subcategory.baseComplexity ?? 'MEDIUM';
+    const priority = this.priority.compute(complexity, department.priorityWeight);
+
+    const created = await this.repo.createWithHistory({
       title,
       description: dto.description ?? null,
       categoryId: dto.categoryId,
       subcategoryId: dto.subcategoryId,
       detailOptionId,
+      complexity,
+      priority,
       departmentId,
       requesterId,
     });
+    // Retorna já projetado (SLA derivado + projeção por papel), como update()/updateStatus(),
+    // para o "Prazo" já vir preenchido na resposta da criação.
+    return this.hideByRole(this.withSla(created), user);
   }
 
   async update(id: string, dto: UpdateTicketDto, user: AuthUser) {

@@ -37,7 +37,11 @@ function makeService(over: {
   const users = { findById: async () => over.assignee ?? null } as any;
   const departments = { findById: async () => over.department ?? { id: 'dep1', priorityWeight: 3 } } as any;
   const categories = { findSubcategory: async () => over.subcategory ?? null } as any;
-  return new TicketsService(repo, departments, users, {} as any, {} as any, categories);
+  // Stub do PriorityService: cálculo determinístico p/ asserção (complexidade + peso do setor).
+  const priority = {
+    compute: (complexity: string, weight: number) => `PRIO(${complexity},${weight})`,
+  } as any;
+  return new TicketsService(repo, departments, users, priority, {} as any, categories);
 }
 
 const operator: AuthUser = { userId: 'op1', email: 'op@x', role: 'OPERATOR', mustChangePassword: false };
@@ -165,6 +169,43 @@ test('create: subcategoria sem detalhes ignora detailOptionId ausente (regressã
     ),
     (e) => e instanceof BadRequestException,
   );
+});
+
+// ---- create (prioridade/SLA automáticos na abertura — Item 2) ----
+test('create: nasce priorizado — complexidade-base default MÉDIA e prioridade pelo peso do setor', async () => {
+  // subRedefinicao: sem detalhes e sem base_complexity → cai no default MÉDIA.
+  const svc = makeService({ subcategory: subRedefinicao });
+  const r: any = await svc.create(
+    { categoryId: 'c1', subcategoryId: 's1', departmentId: 'dep1' } as any,
+    admin,
+  );
+  assert.equal(r.complexity, 'MEDIUM');
+  assert.equal(r.priority, 'PRIO(MEDIUM,3)'); // compute(complexidade, peso_setor=3)
+});
+
+test('create: usa a complexidade-base da subcategoria quando definida', async () => {
+  const svc = makeService({ subcategory: { ...subRedefinicao, baseComplexity: 'HIGH' } });
+  const r: any = await svc.create(
+    { categoryId: 'c1', subcategoryId: 's1', departmentId: 'dep1' } as any,
+    admin,
+  );
+  assert.equal(r.complexity, 'HIGH');
+  assert.equal(r.priority, 'PRIO(HIGH,3)');
+});
+
+test('create: a complexidade-base do detalhe tem precedência sobre a da subcategoria', async () => {
+  const sub = {
+    ...subMonitor,
+    baseComplexity: 'LOW',
+    details: [{ id: 'd1', name: 'Não liga', baseComplexity: 'CRITICAL' }],
+  };
+  const svc = makeService({ subcategory: sub });
+  const r: any = await svc.create(
+    { categoryId: 'c2', subcategoryId: 's2', detailOptionId: 'd1', departmentId: 'dep1' } as any,
+    admin,
+  );
+  assert.equal(r.complexity, 'CRITICAL');
+  assert.equal(r.priority, 'PRIO(CRITICAL,3)');
 });
 
 // ---- addComment (bloqueio em chamado encerrado) ----
