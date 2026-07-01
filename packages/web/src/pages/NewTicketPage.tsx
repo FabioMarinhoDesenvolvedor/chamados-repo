@@ -136,7 +136,7 @@ export function NewTicketPage() {
             <ChevronRight className="h-4 w-4 text-gray-400" />
             <button
               type="button"
-              onClick={() => setSubcategory(null)}
+              onClick={() => { setSubcategory(null); setDetailOption(null); }}
               className={subcategory ? 'text-grena hover:underline' : 'font-medium text-gray-800'}
             >
               {category.name}
