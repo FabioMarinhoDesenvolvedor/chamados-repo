@@ -78,6 +78,8 @@ model Ticket {
   category      TicketCategory?    @relation(fields: [categoryId], references: [id])
   subcategoryId String?            @map("subcategory_id")
   subcategory   TicketSubcategory? @relation(fields: [subcategoryId], references: [id])
+  detailOptionId String?            @map("detail_option_id")
+  detailOption   TicketDetailOption? @relation(fields: [detailOptionId], references: [id])
   complexity   Complexity?
   priority     Priority?
   status       TicketStatus @default(TRIAGE)
@@ -107,6 +109,7 @@ model Ticket {
   @@index([assignedTo])
   @@index([categoryId])
   @@index([subcategoryId])
+  @@index([detailOptionId])
   @@map("tickets")
 }
 
@@ -132,13 +135,33 @@ model TicketSubcategory {
   name       String
   icon       String
   sortOrder  Int            @map("sort_order")
+  baseComplexity Complexity? @map("base_complexity")
   createdAt  DateTime       @default(now()) @map("created_at")
 
   tickets Ticket[]
+  details TicketDetailOption[]
 
   @@unique([categoryId, slug])
   @@index([categoryId])
   @@map("ticket_subcategories")
+}
+
+model TicketDetailOption {
+  id             String            @id @default(uuid())
+  subcategoryId  String            @map("subcategory_id")
+  subcategory    TicketSubcategory @relation(fields: [subcategoryId], references: [id])
+  slug           String
+  name           String
+  icon           String
+  sortOrder      Int               @map("sort_order")
+  baseComplexity Complexity?       @map("base_complexity")
+  createdAt      DateTime          @default(now()) @map("created_at")
+
+  tickets Ticket[]
+
+  @@unique([subcategoryId, slug])
+  @@index([subcategoryId])
+  @@map("ticket_detail_options")
 }
 
 model TicketComment {
