@@ -32,15 +32,21 @@
   tem, o fluxo vai direto para a descrição. O "Assunto" derivado passa a
   "Categoria › Subcategoria › Detalhe" quando houver detalhe. `tickets.detail_option_id`
   é nullable (chamados antigos/2 níveis = NULL). A coluna `base_complexity` (subcategoria e
-  detalhe) existe para o cálculo automático futuro (Item 2) e hoje é NULL.
+  detalhe) alimenta a **priorização automática na abertura** (ver seção abaixo).
 
-## Triagem (complexidade definida pelo admin/TI)
-- O **usuário NÃO escolhe complexidade** ao abrir o chamado (só título, descrição, departamento).
-- Chamado nasce no status **`triage` ("Em triagem")**, com `complexity` e `priority` nulos.
-- O **admin/TI define a complexidade** → o sistema calcula a prioridade (matriz abaixo) e move
-  `triage → open` automaticamente (registrado no histórico). Recalcula se complexidade/depto mudarem.
-- Endpoint: `PATCH /tickets/:id` (admin) com `{ complexity?, departmentId? }`.
-- Ver decisão: decisions/triagem-complexidade.
+## Priorização automática na abertura (complexidade via categorização)
+- O **usuário NÃO escolhe complexidade** (só categoria/subcategoria/detalhe + descrição opcional).
+- O chamado **nasce `OPEN` já priorizado**: a complexidade-base vem da **categorização**
+  (`detalhe.base_complexity` › `subcategoria.base_complexity` › **MÉDIA** como default), a
+  prioridade é derivada pela matriz abaixo com o **peso do setor**, e `sla_started_at` é gravado
+  **na criação**. Não há mais passo de triagem manual para o chamado ganhar prazo.
+- **Sem status `TRIAGE` para chamados novos** (o valor de enum permanece p/ compatibilidade;
+  os chamados antigos foram migrados p/ OPEN priorizado — ver handoff 2026-07-01-prazo-automatico).
+- A complexidade-base é **curada por subcategoria/detalhe** (seed em migration) e pode ser
+  refinada; enquanto não curada, cai no default MÉDIA.
+- **Override do admin (opcional)**: `PATCH /tickets/:id` com `{ complexity?, departmentId? }`
+  ainda recalcula a prioridade — deixou de ser obrigatório para o prazo existir.
+- Ver decisão: decisions/prazo-complexidade-automatica (supera decisions/triagem-complexidade).
 
 ## Cálculo de Prioridade (matriz fixa)
 Centralizado em `PriorityService` (DRY/SOLID). Nunca calcular no banco.
@@ -82,7 +88,7 @@ Recalcular prioridade quando complexity ou departamento mudarem.
 
 ## SLA (prazo de atendimento)
 Centralizado em `SlaService` / `sla.matrix.ts` (DRY). Horas corridas (24/7), contadas a
-partir da triagem (`tickets.sla_started_at`, gravado na saída de TRIAGE). Derivado
+partir da abertura (`tickets.sla_started_at`, gravado na criação do chamado). Derivado
 on-the-fly (`slaDueAt = slaStartedAt + horas`), nunca persistido como prazo.
 
 | Prioridade | Prazo |

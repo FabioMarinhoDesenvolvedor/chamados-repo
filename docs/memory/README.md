@@ -16,7 +16,8 @@
 - decisions/auth-jwt.md
 - decisions/enum-strategy.md
 - decisions/password-hashing.md
-- decisions/triagem-complexidade.md
+- decisions/triagem-complexidade.md  ← SUPERADA por prazo-complexidade-automatica
+- decisions/prazo-complexidade-automatica.md
 - decisions/notificacao-polling.md
 - decisions/ui-theme-grena.md
 - decisions/anexos-imagens.md
@@ -44,3 +45,4 @@
 - handoffs/sessao-2026-06-30-categorias.md
 - handoffs/sessao-2026-07-01-backlog.md  ← PENDÊNCIAS (Item 2: SLA/complexidade automáticos)
 - handoffs/sessao-2026-07-01-terceiro-nivel.md  ← Item 1 entregue (3º nível de categoria/detalhe); deploy pendente
+- handoffs/sessao-2026-07-01-prazo-automatico.md  ← Item 2: prazo/complexidade automáticos; deploy pendente. PRÓXIMO: simplificar abertura p/ leigos

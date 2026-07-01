@@ -1,5 +1,11 @@
 # Triagem: complexidade definida pelo admin/TI
 
+> ⚠️ **SUPERADA em 2026-07-01** por [[prazo-complexidade-automatica]]. A complexidade deixou de
+> ser definida manualmente na triagem: o chamado passa a **nascer OPEN já priorizado**, com a
+> complexidade-base vinda da categorização (detalhe › subcategoria › MÉDIA) e a prioridade
+> derivada pela matriz com o peso do setor. O `PATCH /tickets/:id` (complexidade) permanece
+> apenas como **override opcional** do admin. Mantido aqui para histórico.
+
 Data: 2026-06-26
 
 ## Contexto
