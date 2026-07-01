@@ -111,8 +111,12 @@ export function TicketDetailPage() {
           <StatusBadge status={ticket.status} />
           {ticket.subcategory && (
             <span className="inline-flex items-center gap-1 rounded-full bg-grena/5 px-2 py-0.5 text-xs font-medium text-grena">
-              <CategoryIcon name={ticket.subcategory.icon} className="h-3.5 w-3.5" />
+              <CategoryIcon
+                name={ticket.detailOption?.icon ?? ticket.subcategory.icon}
+                className="h-3.5 w-3.5"
+              />
               {ticket.category?.name} › {ticket.subcategory.name}
+              {ticket.detailOption ? ` › ${ticket.detailOption.name}` : ''}
             </span>
           )}
           {isStaff && (
