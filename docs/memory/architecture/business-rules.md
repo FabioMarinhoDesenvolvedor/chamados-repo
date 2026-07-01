@@ -28,8 +28,11 @@
 - 6 blocos / 33 subcategorias são dado de referência (seed na migration). Filtro por categoria
   disponível no dashboard e no relatório.
 - **3º nível ("detalhe")**: subcategorias podem ter 0..N detalhes (data-driven, seed na
-  migration). Quando a subcategoria tem detalhes, escolher um é **obrigatório**; quando não
-  tem, o fluxo vai direto para a descrição. O "Assunto" derivado passa a
+  migration). Escolher o detalhe é **OPCIONAL** (a abertura não pode travar quem não sabe): o
+  grid tem um card **"Não sei / Outro"** que pula direto pro form; sem detalhe, a complexidade-base
+  vem da subcategoria. Detalhes de **diagnóstico técnico** (causa) foram removidos — "Sem conexão"
+  e "Rede interna" voltaram a 2 níveis; mantidos só os de **sintoma observável**. O "Assunto"
+  derivado passa a
   "Categoria › Subcategoria › Detalhe" quando houver detalhe. `tickets.detail_option_id`
   é nullable (chamados antigos/2 níveis = NULL). A coluna `base_complexity` (subcategoria e
   detalhe) alimenta a **priorização automática na abertura** (ver seção abaixo).
