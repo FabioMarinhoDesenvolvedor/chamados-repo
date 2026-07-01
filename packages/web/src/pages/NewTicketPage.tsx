@@ -56,6 +56,8 @@ export function NewTicketPage() {
   const [category, setCategory] = useState<CategoryWithSubcategories | null>(null);
   const [subcategory, setSubcategory] = useState<TicketSubcategory | null>(null);
   const [detailOption, setDetailOption] = useState<TicketDetailOption | null>(null);
+  // Detalhe é opcional: o usuário pode pular com "Não sei / Outro".
+  const [detailSkipped, setDetailSkipped] = useState(false);
   const [description, setDescription] = useState('');
   const [departmentId, setDepartmentId] = useState('');
   const [requesterId, setRequesterId] = useState('');
@@ -68,8 +70,9 @@ export function NewTicketPage() {
 
   const subDetails = subcategory?.details ?? [];
   const needsDetail = subDetails.length > 0;
-  // Só mostra o form quando: subcategoria sem detalhe, OU já escolheu um detalhe.
-  const showForm = !!subcategory && (!needsDetail || !!detailOption);
+  // Detalhe é OPCIONAL: mostra o form quando a subcategoria não tem detalhes, OU já se
+  // escolheu um, OU o usuário pulou ("Não sei / Outro").
+  const showForm = !!subcategory && (!needsDetail || !!detailOption || detailSkipped);
 
   if (blockOperator) return <Navigate to="/" replace />;
 
@@ -84,11 +87,13 @@ export function NewTicketPage() {
     setCategory(null);
     setSubcategory(null);
     setDetailOption(null);
+    setDetailSkipped(false);
   }
 
   function selectSubcategory(s: TicketSubcategory) {
     setSubcategory(s);
     setDetailOption(null);
+    setDetailSkipped(false);
   }
 
   async function onSubmit(e: FormEvent) {
@@ -136,7 +141,7 @@ export function NewTicketPage() {
             <ChevronRight className="h-4 w-4 text-gray-400" />
             <button
               type="button"
-              onClick={() => { setSubcategory(null); setDetailOption(null); }}
+              onClick={() => { setSubcategory(null); setDetailOption(null); setDetailSkipped(false); }}
               className={subcategory ? 'text-grena hover:underline' : 'font-medium text-gray-800'}
             >
               {category.name}
@@ -148,7 +153,7 @@ export function NewTicketPage() {
             <ChevronRight className="h-4 w-4 text-gray-400" />
             <button
               type="button"
-              onClick={() => setDetailOption(null)}
+              onClick={() => { setDetailOption(null); setDetailSkipped(false); }}
               className={detailOption ? 'text-grena hover:underline' : 'font-medium text-gray-800'}
             >
               {subcategory.name}
@@ -197,16 +202,21 @@ export function NewTicketPage() {
             ))}
           </div>
         </div>
-      ) : needsDetail && !detailOption ? (
-        // Passo 3: detalhes (3º nível) — obrigatório quando a subcategoria tem opções
+      ) : needsDetail && !detailOption && !detailSkipped ? (
+        // Passo 3: detalhes (3º nível) — OPCIONAL. "Não sei / Outro" pula direto pro form.
         <div className="space-y-4">
           <Button variant="ghost" className="px-2" onClick={() => setSubcategory(null)}>
             <ArrowLeft className="mr-1 h-4 w-4" /> Voltar para as subcategorias
           </Button>
+          <p className="text-sm text-gray-500">
+            O que você observa?{' '}
+            <span className="text-gray-400">(opcional — se não souber, toque em "Não sei / Outro")</span>
+          </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {subDetails.map((d) => (
               <BlockCard key={d.id} icon={d.icon} label={d.name} onClick={() => setDetailOption(d)} />
             ))}
+            <BlockCard icon="HelpCircle" label="Não sei / Outro" onClick={() => setDetailSkipped(true)} />
           </div>
         </div>
       ) : showForm ? (
@@ -215,9 +225,16 @@ export function NewTicketPage() {
           <Button
             variant="ghost"
             className="mb-4 px-2"
-            onClick={() => (needsDetail ? setDetailOption(null) : setSubcategory(null))}
+            onClick={() => {
+              if (needsDetail) {
+                setDetailOption(null);
+                setDetailSkipped(false);
+              } else {
+                setSubcategory(null);
+              }
+            }}
           >
-            <ArrowLeft className="mr-1 h-4 w-4" /> {needsDetail ? 'Trocar detalhe' : 'Trocar subcategoria'}
+            <ArrowLeft className="mr-1 h-4 w-4" /> {needsDetail ? 'Voltar' : 'Trocar subcategoria'}
           </Button>
 
           <div className="mb-5 flex items-center gap-3 rounded-md bg-grena/5 p-3">

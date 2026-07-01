@@ -88,21 +88,18 @@ export class TicketsService {
       throw new BadRequestException('Subcategoria inválida para a categoria informada');
     }
 
+    // O 3º nível ("detalhe") é OPCIONAL — a abertura não pode travar quem não sabe o detalhe.
+    // Se informado, precisa pertencer à subcategoria; se ausente, o chamado segue sem detalhe.
     const details = subcategory.details ?? [];
     let detailOptionId: string | null = null;
     let detailName: string | null = null;
-    if (details.length > 0) {
-      if (!dto.detailOptionId) {
-        throw new BadRequestException('Selecione um detalhe para esta subcategoria');
-      }
+    if (dto.detailOptionId) {
       const detail = details.find((d) => d.id === dto.detailOptionId);
       if (!detail) {
         throw new BadRequestException('Detalhe inválido para a subcategoria informada');
       }
       detailOptionId = detail.id;
       detailName = detail.name;
-    } else if (dto.detailOptionId) {
-      throw new BadRequestException('Esta subcategoria não aceita detalhe');
     }
 
     const title = detailName

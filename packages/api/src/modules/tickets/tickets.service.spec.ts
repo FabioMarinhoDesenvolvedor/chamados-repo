@@ -133,12 +133,15 @@ test('create: com detalhe válido deriva o título de 3 níveis e grava detailOp
   assert.equal(r.detailOptionId, 'd1');
 });
 
-test('create: subcategoria com detalhes exige detailOptionId', async () => {
-  const svc = makeService({ subcategory: subMonitor });
-  await assert.rejects(
-    () => svc.create({ categoryId: 'c2', subcategoryId: 's2', departmentId: 'dep1' } as any, admin),
-    (e) => e instanceof BadRequestException,
+test('create: com detalhes, criar SEM detalhe é permitido (opcional) e usa a complexidade da subcategoria', async () => {
+  const svc = makeService({ subcategory: { ...subMonitor, baseComplexity: 'HIGH' } });
+  const r: any = await svc.create(
+    { categoryId: 'c2', subcategoryId: 's2', departmentId: 'dep1' } as any,
+    admin,
   );
+  assert.equal(r.title, 'Computador e Equipamentos › Monitor'); // 2 níveis, sem detalhe
+  assert.equal(r.detailOptionId, null);
+  assert.equal(r.complexity, 'HIGH'); // complexidade-base da subcategoria
 });
 
 test('create: rejeita detalhe que não pertence à subcategoria', async () => {
