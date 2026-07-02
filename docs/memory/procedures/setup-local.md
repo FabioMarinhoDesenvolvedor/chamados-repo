@@ -12,7 +12,7 @@ Pré-requisitos: Node >= 20, Docker (ou PostgreSQL local).
    Não-interativo (passa o nome direto):
    `npm run db:migrate -w @chamados/api -- --name init`
 6. Seed: `npm run db:seed`
-   (cria depto TI/RH/Financeiro, admin@chamados.local e user@chamados.local — senha: senha123)
+   (cria deptos TI/RH + os 13 setores da migration de seed, admin@chamados.local e user@chamados.local — senha: senha123)
 7. Dev: `npm run dev` (sobe shared em watch + api + web)
    - API: http://localhost:3000/api
    - Web: http://localhost:5173 (proxy /api → 3000)

@@ -17,11 +17,7 @@ async function main(): Promise<void> {
     update: {},
     create: { name: 'RH', priorityWeight: 3 },
   });
-  const financeiro = await prisma.department.upsert({
-    where: { name: 'Financeiro' },
-    update: {},
-    create: { name: 'Financeiro', priorityWeight: 2 },
-  });
+  const tesouraria = await prisma.department.findUniqueOrThrow({ where: { name: 'Tesouraria' } });
 
   const admin = await prisma.user.upsert({
     where: { email: 'admin@chamados.local' },
@@ -59,7 +55,7 @@ async function main(): Promise<void> {
       {
         title: 'Resetar senha de e-mail',
         description: 'Esqueci a senha do e-mail corporativo.',
-        department: financeiro,
+        department: tesouraria,
       },
     ];
 
