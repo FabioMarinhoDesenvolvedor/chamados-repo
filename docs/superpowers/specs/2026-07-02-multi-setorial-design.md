@@ -26,28 +26,39 @@
    `Department.notificationEmail` (1 e-mail por setor, nullable). **Isso estende — não
    substitui — a decisão de 26/06.** Uma nova decisão (`decisions/notificacao-hibrida-email.md`)
    deve ser criada na implementação, documentando a extensão.
-6. **Setores (tabela final, não reabrir)**:
+6. **Setores (tabela final, não reabrir)**. `priorityWeight` reflete a **urgência operacional
+   de quem recebe o chamado** (setor executor), não a importância hierárquica do setor —
+   âncoras dadas por Fabio: Presidência=5, Limpeza=2:
 
-   | Setor | S/E/A | Executor? | Requester? | Aprovação? |
-   |---|---|---|---|---|
-   | RH | A | ✓ | ✓ | não |
-   | Tesouraria | S | | ✓ | não |
-   | Limpeza | E | ✓ | | não |
-   | Manutenção | E | ✓ | | não |
-   | Almoxarifado | E | ✓ | | não |
-   | Compras | E | ✓ | | não |
-   | TI | E | ✓ | | não |
-   | Comunicações | E | ✓ | | não |
-   | Gestão de Contratos | E | ✓ | | não |
-   | Secretaria | E | ✓ | | não |
-   | Secretaria da Presidência | E | ✓ | | não |
-   | Jurídico | E | ✓ | | não |
-   | Eventos | E | ✓ | | não |
-   | CEO | A | ✓ | ✓ | não |
-   | Presidência | E | ✓ | | **sim** |
+   | Setor | S/E/A | Executor? | Requester? | Aprovação? | priorityWeight |
+   |---|---|---|---|---|---|
+   | RH | A | ✓ | ✓ | não | 3 |
+   | Tesouraria | S | | ✓ | não | 4 |
+   | Limpeza | E | ✓ | | não | 2 |
+   | Manutenção | E | ✓ | | não | 4 |
+   | Almoxarifado | E | ✓ | | não | 2 |
+   | Compras | E | ✓ | | não | 3 |
+   | TI | E | ✓ | | não | 5 *(já é 5 no seed atual — mantém)* |
+   | Comunicações | E | ✓ | | não | 3 |
+   | Gestão de Contratos | E | ✓ | | não | 3 |
+   | Secretaria | E | ✓ | | não | 2 |
+   | Secretaria da Presidência | E | ✓ | | não | 4 |
+   | Jurídico | E | ✓ | | não | 4 |
+   | Eventos | E | ✓ | | não | 2 |
+   | CEO | A | ✓ | ✓ | não | 5 *(mesmo tier da Presidência — quem aprova os chamados dela)* |
+   | Presidência | E | ✓ | | **sim** | 5 |
+
+   O peso só entra **combinado** com a complexidade na matriz já aprovada
+   (`business-rules.md`) — um chamado `CRITICAL` pra Limpeza ainda vira `HIGH`, não `LOW`; não é
+   "Limpeza sempre por último", é "mesma complexidade responde mais devagar que Presidência".
 
    **Elétrica não é setor** — é categoria dentro de Manutenção. Almoxarifado→Compras (reposição
    por compra) é fluxo **fora** do sistema de chamados — não modelado.
+
+   Nota: o seed de dev atual tem um `Department` de exemplo chamado **"Financeiro"**
+   (`priorityWeight=2`, ver `procedures/setup-local.md`) — não é o mesmo setor que
+   "Tesouraria" da tabela oficial do clube. Vira dado obsoleto quando o seed novo for aplicado;
+   não precisa migração de dados (é só fixture de dev), mas o seed script deve parar de criá-lo.
 7. **Roteamento via categoria, não tabela separada**: `TicketCategory` ganha `departmentId`
    (nullable). Só pode apontar para `Department.isExecutorDept = true`. `Ticket.
    executorDepartmentId` é resolvido a partir de `category.departmentId` **no momento da
@@ -61,9 +72,17 @@
    nasce com **1 subcategoria placeholder** ("Solicitação geral", `base_complexity = MEDIA`) —
    curadoria fina de subcategorias reais fica para sessão futura (mesmo padrão incremental do
    backlog `sessao-2026-07-01-backlog.md`, Itens 1/2).
-10. **Totem**: expõe só **Manutenção + Limpeza** (TI fica de fora do quiosque público). Um
-    único `User` técnico genérico ("Totem") como `requesterId`; `Ticket` ganha `originLocation`
-    (texto livre, capturado só quando `requesterId` = usuário totem).
+10. **Totem — mecanismo fechado (decisão de design, não pendência de implementação)**: expõe só
+    **Manutenção + Limpeza** (TI fica de fora do quiosque público). Sem role nova no enum —
+    cada totem físico é um `User` técnico dedicado (`role=USER`) com **`isKiosk: Boolean`**
+    (campo novo, `@default(false)`, não valor de enum — evita o gotcha
+    `postgres-enum-default.md` e não contradiz a decisão de roles fixas). Auth reaproveita
+    `auth-jwt.md` (JWT stateless): token de vida longa emitido pra esse `User`, armazenado no
+    dispositivo físico, renovação automática, sem tela de login visível ao público. Requester
+    do chamado = esse `User` fixo; como o setor de destino já vem da categoria (não do
+    departamento do solicitante), o totem pode ficar num `Department` neutro qualquer — não
+    precisa de tratamento especial no cadastro. `Ticket` ganha `originLocation` (texto livre,
+    capturado só quando `requesterId.isKiosk = true`).
 
 ## Não-objetivos (fora de escopo deste design)
 
@@ -75,11 +94,6 @@
   macro-bloco aprovado. Os outros 12 setores existem como `Department`, prontos para receber
   categorias quando curados, mas **sem fluxo guiado funcional ainda** — ficam para sessão
   futura.
-- **`priorityWeight` real dos 14 setores novos**: nasce com placeholder `3` (Médio) no seed,
-  igual ao padrão de curadoria incremental (mesmo espírito do `base_complexity` do item 9) —
-  **Fabio ajusta os pesos reais depois**. Não afeta setores hoje sem fluxo guiado (não geram
-  chamados ainda); afeta só TI/Manutenção/Limpeza se algum dia um requester tiver esse
-  `departmentId` como setor próprio.
 - Sem WebSocket, sem BullMQ/pg-boss — fila de e-mail é uma tabela outbox simples com worker
   leve (ver §3), consistente com "REST simples no MVP" do `CLAUDE.md` e o ambiente bare-metal
   sem Docker em produção.
@@ -113,6 +127,13 @@ model Department {
 `isRequesterDept`/`isExecutorDept` são **informativos + governam elegibilidade de roteamento**
 (`TicketCategory.departmentId` só pode referenciar `isExecutorDept=true`) — **não** bloqueiam
 `User.departmentId` nem quebram dados existentes.
+
+### `User` — 1 coluna nova
+```prisma
+isKiosk Boolean @default(false) @map("is_kiosk")
+```
+Marca o(s) `User`(s) técnico(s) do totem. Boolean, não enum — evita o gotcha
+`postgres-enum-default.md` e não mexe nos 3 valores fixos de `Role`.
 
 ### `TicketCategory` — 1 coluna nova
 ```prisma
@@ -162,7 +183,7 @@ requiresApproval = true`.
 
 Índice em `status` (worker faz `WHERE status='PENDING' ORDER BY created_at LIMIT N`).
 
-### Seed — 14 `Department`s novos + categorias de Manutenção/Limpeza
+### Seed — 14 `Department`s novos (pesos reais na tabela da decisão #6) + categorias de Manutenção/Limpeza
 
 **Categorias — Manutenção** (`departmentId` = Manutenção): Elétrica (`eletrica`/`Zap`),
 Hidráulica (`hidraulica`/`Droplet`), Ar-condicionado (`ar-condicionado`/`Snowflake`),
@@ -220,8 +241,9 @@ Cada uma das 14 ganha 1 `TicketSubcategory` placeholder (`slug = "solicitacao-ge
 - Setor sem `notificationEmail`: só o polling vale (comportamento aprovado hoje).
 
 ### Totem
-- Usuário técnico `Totem` (seed, `role=USER`, sem senha usável em produção — ou senha fixa
-  trocada só por ADMIN, a definir na implementação).
+- Usuário técnico `Totem` (seed, `role=USER`, `isKiosk=true`). Login por JWT de vida longa
+  emitido pra esse `User` específico (reaproveita `auth-jwt.md`), armazenado no dispositivo
+  físico do totem — sem tela de login visível ao público, renovação automática.
 - Tela `/totem`: kiosk (sem menu/header padrão), campo "Local/sala de origem" (texto livre,
   obrigatório) → macro-bloco (Manutenção/Limpeza) → categoria → subcategoria placeholder →
   descrição opcional → concluir. `originLocation` grava o texto capturado.
@@ -262,9 +284,10 @@ Cada uma das 14 ganha 1 `TicketSubcategory` placeholder (`slug = "solicitacao-ge
   `departmentId` do bloco escolhido. Breadcrumb ganha 1 nó a mais.
 - **`/totem`** (rota nova, fora do layout autenticado padrão): campo de local + fluxo
   simplificado (só Manutenção/Limpeza), botões grandes, sem menu lateral/header — reaproveita
-  `BlockCard`/`CategoryIcon`/`components/ui` existentes. Autenticação: sessão técnica fixa
-  (token de serviço ou rota pública restrita por IP da LAN — decidir mecanismo exato na
-  implementação, já que o totem não tem login humano).
+  `BlockCard`/`CategoryIcon`/`components/ui` existentes. Autenticação: JWT de vida longa do
+  `User` `isKiosk=true` (ver §2), embutido no build/config do dispositivo físico — sem tela de
+  login. Provisionamento de cada totem físico (como o token chega no dispositivo) é detalhe de
+  implementação, não de design.
 - **Fila por setor**: `DashboardPage` já filtra via backend; ajuste visual — quando o staff
   tiver `departmentId`, mostrar o nome do setor no cabeçalho ("Fila — Manutenção"); ADMIN
   global mantém view atual.
@@ -283,7 +306,8 @@ Cada uma das 14 ganha 1 `TicketSubcategory` placeholder (`slug = "solicitacao-ge
   1. `ALTER TABLE departments ADD COLUMN` (4 colunas, com defaults) — não quebra nada.
   2. Backfill: `UPDATE departments SET is_executor_dept=true, is_requester_dept=false WHERE name='TI'`
      (setor TI existente vira só-executor, conforme tabela aprovada).
-  3. `INSERT` dos 14 `Department`s novos (`priorityWeight=3` placeholder).
+  3. `INSERT` dos 14 `Department`s novos com os pesos reais da tabela da decisão #6 (não mais
+     placeholder).
   4. `ALTER TABLE ticket_categories ADD COLUMN department_id` (nullable) + backfill dos 6 blocos
      de TI + `INSERT` das 14 categorias novas + `INSERT` das 14 subcategorias placeholder.
   5. `ALTER TABLE tickets ADD COLUMN executor_department_id, origin_location` (nullable) —
@@ -292,8 +316,9 @@ Cada uma das 14 ganha 1 `TicketSubcategory` placeholder (`slug = "solicitacao-ge
      consistência histórica, a confirmar).
   6. `ALTER TYPE "TicketStatus" ADD VALUE 'PENDING_APPROVAL'` (ver gotcha
      `postgres-enum-default.md` antes de aplicar — checar se precisa de tratamento especial).
-  7. `CREATE TABLE notification_outbox`.
-  8. Seed do usuário técnico `Totem`.
+  7. `ALTER TABLE users ADD COLUMN is_kiosk` (boolean, default false).
+  8. `CREATE TABLE notification_outbox`.
+  9. Seed do usuário técnico `Totem` (`isKiosk=true`) + emissão do JWT de vida longa.
 - **Deploy é do usuário** (bare-metal, Debian 12, systemd, sem Docker em produção) — ordem:
   `db:generate` → `db:deploy` → build `shared → api → web` → restart. Instalar `nodemailer`
   antes do build da API.
@@ -319,6 +344,8 @@ Cada uma das 14 ganha 1 `TicketSubcategory` placeholder (`slug = "solicitacao-ge
 - Nova decisão `decisions/aprovacao-chamados.md`.
 - Nova decisão `decisions/notificacao-hibrida-email.md` (estende `notificacao-polling.md`,
   registrar explicitamente que não a substitui).
+- Nova decisão `decisions/totem-kiosk-auth.md` (User técnico + `isKiosk` boolean + JWT de vida
+  longa, referenciando `auth-jwt.md`).
 - Atualizar `docs/memory/README.md` com as novas entradas.
 - Handoff de sessão ao final, registrando os 12 setores sem categoria curada como pendência
   explícita (mesmo padrão do handoff `sessao-2026-07-01-backlog.md`).
