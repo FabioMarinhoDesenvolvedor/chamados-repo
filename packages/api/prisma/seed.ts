@@ -10,14 +10,37 @@ async function main(): Promise<void> {
   const ti = await prisma.department.upsert({
     where: { name: 'TI' },
     update: {},
-    create: { name: 'TI', priorityWeight: 5 },
+    create: { name: 'TI', priorityWeight: 5, isRequesterDept: false, isExecutorDept: true },
   });
   const rh = await prisma.department.upsert({
     where: { name: 'RH' },
     update: {},
-    create: { name: 'RH', priorityWeight: 3 },
+    create: { name: 'RH', priorityWeight: 3, isRequesterDept: true, isExecutorDept: true },
   });
   const tesouraria = await prisma.department.findUniqueOrThrow({ where: { name: 'Tesouraria' } });
+
+  // Backfill de segurança: a migration de seed (20260702090200) tenta resolver
+  // department_id das 6 categorias de TI via subquery por nome — em um banco
+  // criado do zero, TI ainda não existe nesse ponto (só é criado aqui, pelo
+  // seed, que roda depois das migrations), então a subquery não encontra nada
+  // e o campo fica NULL. Mesmo padrão de correção usado para os flags de TI/RH
+  // acima: reaplicar aqui, idempotente (só afeta linhas ainda sem department_id).
+  await prisma.ticketCategory.updateMany({
+    where: {
+      slug: {
+        in: [
+          'acesso-senhas',
+          'computador-equipamentos',
+          'sistemas-aplicativos',
+          'internet-rede',
+          'solicitacoes',
+          'outros',
+        ],
+      },
+      departmentId: null,
+    },
+    data: { departmentId: ti.id },
+  });
 
   const admin = await prisma.user.upsert({
     where: { email: 'admin@chamados.local' },

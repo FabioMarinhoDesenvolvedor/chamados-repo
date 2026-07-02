@@ -5,10 +5,17 @@
 UPDATE "departments" SET "is_executor_dept" = true, "is_requester_dept" = false WHERE "name" = 'TI';
 
 -- ============================================================================
--- 14 setores novos, pesos reais (âncoras: Presidência=5, Limpeza=2).
+-- Backfill: RH (setor existente, fundacional junto com TI) vira "Ambos"
+-- (solicitante E executor). RH não entra no INSERT abaixo porque já existe em
+-- todo ambiente (o INSERT ON CONFLICT DO NOTHING nunca aplicaria os flags a um
+-- setor pré-existente) — mesmo padrão do backfill de TI acima.
+-- ============================================================================
+UPDATE "departments" SET "priority_weight" = 3, "is_executor_dept" = true, "is_requester_dept" = true WHERE "name" = 'RH';
+
+-- ============================================================================
+-- 13 setores novos, pesos reais (âncoras: Presidência=5, Limpeza=2).
 -- ============================================================================
 INSERT INTO "departments" ("id","name","priority_weight","is_requester_dept","is_executor_dept","requires_approval") VALUES
-  (gen_random_uuid(),'RH',3,true,true,false),
   (gen_random_uuid(),'Tesouraria',4,true,false,false),
   (gen_random_uuid(),'Limpeza',2,false,true,false),
   (gen_random_uuid(),'Manutenção',4,false,true,false),
