@@ -8,6 +8,7 @@ export interface UserPublic {
   email: string;
   role: Role;
   departmentId: string | null;
+  isKiosk: boolean;
   mustChangePassword: boolean;
   createdAt: string;
   updatedAt: string;
@@ -28,6 +29,10 @@ export interface Department {
   id: string;
   name: string;
   priorityWeight: number;
+  isRequesterDept: boolean;
+  isExecutorDept: boolean;
+  requiresApproval: boolean;
+  notificationEmail: string | null;
   createdAt: string;
 }
 
@@ -78,7 +83,9 @@ export interface Ticket {
   complexity: Complexity | null;
   priority: Priority | null;
   status: TicketStatus;
-  departmentId: string;
+  departmentId: string; // setor do SOLICITANTE (não muda de sentido)
+  executorDepartmentId: string | null; // setor EXECUTOR (destino), resolvido pela categoria
+  originLocation: string | null; // capturado só via totem (Plano 4)
   requesterId: string;
   assignedTo: string | null;
   lastActivityAt: string;
@@ -129,6 +136,7 @@ export interface TicketDetail extends Ticket {
   requester?: UserPublic;
   assignee?: UserPublic | null;
   department?: Department;
+  executorDepartment?: Department | null;
   comments: TicketComment[];
   history: TicketStatusHistory[];
   attachments: TicketAttachment[];
@@ -204,6 +212,10 @@ export interface CreateUserInput {
 export interface CreateDepartmentInput {
   name: string;
   priorityWeight: number;
+  isRequesterDept?: boolean;
+  isExecutorDept?: boolean;
+  requiresApproval?: boolean;
+  notificationEmail?: string;
 }
 
 export interface TicketFilters {

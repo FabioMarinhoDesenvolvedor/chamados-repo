@@ -11,5 +11,12 @@ export type Complexity = (typeof COMPLEXITIES)[number];
 export const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'] as const;
 export type Priority = (typeof PRIORITIES)[number];
 
-export const TICKET_STATUSES = ['TRIAGE', 'OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'] as const;
+export const TICKET_STATUSES = [
+  'TRIAGE',
+  'PENDING_APPROVAL',
+  'OPEN',
+  'IN_PROGRESS',
+  'RESOLVED',
+  'CLOSED',
+] as const;
 export type TicketStatus = (typeof TICKET_STATUSES)[number];
