@@ -1,4 +1,4 @@
-import { IsInt, IsString, Max, Min, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsInt, IsOptional, IsString, Max, Min, MinLength } from 'class-validator';
 
 export class CreateDepartmentDto {
   @IsString()
@@ -9,4 +9,20 @@ export class CreateDepartmentDto {
   @Min(1)
   @Max(5)
   priorityWeight!: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isRequesterDept?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isExecutorDept?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  requiresApproval?: boolean;
+
+  @IsOptional()
+  @IsEmail()
+  notificationEmail?: string;
 }

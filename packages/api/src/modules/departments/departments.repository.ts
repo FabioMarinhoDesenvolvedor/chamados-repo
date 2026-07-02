@@ -26,8 +26,15 @@ export class DepartmentsRepository {
     return this.prisma.user.count({ where: { departmentId } });
   }
 
+  // Conta tanto chamados abertos PELO setor (solicitante) quanto EXECUTADOS por ele.
   countTickets(departmentId: string) {
-    return this.prisma.ticket.count({ where: { departmentId } });
+    return this.prisma.ticket.count({
+      where: { OR: [{ departmentId }, { executorDepartmentId: departmentId }] },
+    });
+  }
+
+  countCategories(departmentId: string) {
+    return this.prisma.ticketCategory.count({ where: { departmentId } });
   }
 
   remove(id: string) {
