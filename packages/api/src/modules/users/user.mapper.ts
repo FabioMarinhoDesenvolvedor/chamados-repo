@@ -8,6 +8,7 @@ export function toUserPublic(u: User): UserPublic {
     email: u.email,
     role: u.role,
     departmentId: u.departmentId,
+    isKiosk: u.isKiosk,
     mustChangePassword: u.mustChangePassword,
     createdAt: u.createdAt.toISOString(),
     updatedAt: u.updatedAt.toISOString(),
