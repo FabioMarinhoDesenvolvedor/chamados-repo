@@ -9,3 +9,6 @@ coverage/
 .DS_Store
 packages/*/dist/
 packages/api/prisma/*.db
+
+# Scratch state for superpowers subagent-driven-development (not project artifacts)
+.superpowers/
