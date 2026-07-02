@@ -175,14 +175,29 @@ export class TicketsService {
   // Filtro de listagem compartilhado por list() e stats(), com visibilidade por papel.
   private listWhere(query: TicketQueryDto, user: AuthUser): Prisma.TicketWhereInput {
     const where: Prisma.TicketWhereInput = {};
-    if (query.status) where.status = query.status;
-    // "Em aberto": esconde resolvidos/concluídos quando não há status específico.
-    else if (query.scope === 'active') where.status = { notIn: ['RESOLVED', 'CLOSED'] };
+    // OPERATOR com setor definido só vê/atende o próprio setor executor; ADMIN NUNCA é
+    // restrito (mesmo com departmentId setado); OPERATOR sem departmentId vê tudo (regressão).
+    const isOperatorScoped = user.role === 'OPERATOR' && !!user.departmentId;
+
+    if (query.status) {
+      where.status = query.status;
+    } else {
+      const hidden: TicketStatus[] = [];
+      // "Em aberto": esconde resolvidos/concluídos quando não há status específico.
+      if (query.scope === 'active') hidden.push('RESOLVED', 'CLOSED');
+      // Chamado ainda não aprovado não aparece na fila de atendimento do setor.
+      if (isOperatorScoped) hidden.push('PENDING_APPROVAL');
+      if (hidden.length) where.status = { notIn: hidden };
+    }
     if (query.priority) where.priority = query.priority;
     if (query.categoryId) where.categoryId = query.categoryId;
     if (query.subcategoryId) where.subcategoryId = query.subcategoryId;
-    // Visibilidade: USER vê apenas os próprios chamados; staff (ADMIN/OPERATOR) vê todos.
+
+    // Visibilidade: USER vê apenas os próprios chamados; OPERATOR escopado vê só o
+    // próprio setor executor; ADMIN e OPERATOR sem setor veem tudo (comportamento atual).
     if (user.role === 'USER') where.requesterId = user.userId;
+    else if (isOperatorScoped) where.executorDepartmentId = user.departmentId as string;
+
     return where;
   }
 
@@ -219,7 +234,11 @@ export class TicketsService {
   // KPIs do dashboard calculados no servidor (groupBy status), respeitando o papel.
   async stats(user: AuthUser): Promise<TicketStats> {
     const where: Prisma.TicketWhereInput =
-      user.role === 'USER' ? { requesterId: user.userId } : {};
+      user.role === 'USER'
+        ? { requesterId: user.userId }
+        : user.role === 'OPERATOR' && user.departmentId
+          ? { executorDepartmentId: user.departmentId }
+          : {};
     const grouped = await this.repo.groupByStatus(where);
     const count = (s: TicketStatus) =>
       grouped.find((g) => g.status === s)?._count._all ?? 0;
@@ -233,7 +252,7 @@ export class TicketsService {
   async detail(id: string, user: AuthUser) {
     const ticket = await this.repo.findDetail(id);
     if (!ticket) throw new NotFoundException('Chamado não encontrado');
-    this.ensureCanView(ticket.requesterId, user);
+    this.ensureCanView(ticket, user);
     await this.repo.markSeen(user.userId, id);
     return this.hideByRole(
       this.withSla({
@@ -260,7 +279,7 @@ export class TicketsService {
   ) {
     const ticket = await this.repo.findById(ticketId);
     if (!ticket) throw new NotFoundException('Chamado não encontrado');
-    this.ensureCanView(ticket.requesterId, user);
+    this.ensureCanView(ticket, user);
     if (files.length === 0) return [];
 
     if (commentId) {
@@ -291,7 +310,7 @@ export class TicketsService {
     }
     const ticket = await this.repo.findById(ticketId);
     if (!ticket) throw new NotFoundException('Chamado não encontrado');
-    this.ensureCanView(ticket.requesterId, user);
+    this.ensureCanView(ticket, user);
 
     const path = join(attachmentsDir(), attachment.filename);
     if (!existsSync(path)) throw new NotFoundException('Arquivo do anexo não encontrado');
@@ -305,8 +324,14 @@ export class TicketsService {
   }
 
   async updateStatus(id: string, status: TicketStatus, user: AuthUser) {
+    if (status === 'PENDING_APPROVAL') {
+      throw new BadRequestException(
+        'Não é possível definir "aguardando aprovação" manualmente — use o endpoint de aprovação',
+      );
+    }
     const ticket = await this.repo.findById(id);
     if (!ticket) throw new NotFoundException('Chamado não encontrado');
+    this.ensureCanView(ticket, user);
 
     const resolvedAt =
       status === 'RESOLVED' ? new Date() : status === 'CLOSED' ? ticket.resolvedAt : null;
@@ -317,6 +342,24 @@ export class TicketsService {
       toStatus: status,
       changedBy: user.userId,
       resolvedAt,
+    });
+    return this.hideByRole(this.withSla(updated), user);
+  }
+
+  // Aprovação (só ADMIN, só a partir de PENDING_APPROVAL) — reaproveita o mesmo
+  // updateStatusWithHistory usado por updateStatus(), sem tabela/repositório novos.
+  async approve(id: string, user: AuthUser) {
+    const ticket = await this.repo.findById(id);
+    if (!ticket) throw new NotFoundException('Chamado não encontrado');
+    if (ticket.status !== 'PENDING_APPROVAL') {
+      throw new BadRequestException('Chamado não está aguardando aprovação');
+    }
+    const updated = await this.repo.updateStatusWithHistory({
+      id,
+      fromStatus: ticket.status,
+      toStatus: 'OPEN',
+      changedBy: user.userId,
+      resolvedAt: null,
     });
     return this.hideByRole(this.withSla(updated), user);
   }
@@ -345,6 +388,7 @@ export class TicketsService {
   async assign(id: string, assignedTo: string, user: AuthUser) {
     const ticket = await this.repo.findById(id);
     if (!ticket) throw new NotFoundException('Chamado não encontrado');
+    this.ensureCanView(ticket, user);
 
     // OPERATOR só pode assumir o chamado para si; ADMIN atribui a qualquer membro da equipe.
     if (user.role === 'OPERATOR' && assignedTo !== user.userId) {
@@ -365,7 +409,7 @@ export class TicketsService {
   async addComment(id: string, body: string, user: AuthUser) {
     const ticket = await this.repo.findById(id);
     if (!ticket) throw new NotFoundException('Chamado não encontrado');
-    this.ensureCanView(ticket.requesterId, user);
+    this.ensureCanView(ticket, user);
     // Chamado resolvido/concluído: ninguém comenta (nem admin). Para retomar, a equipe
     // volta o status para "em andamento" (reabre) antes de comentar.
     if (ticket.status === 'RESOLVED' || ticket.status === 'CLOSED') {
@@ -417,10 +461,19 @@ export class TicketsService {
     return lastActivityAt > lastSeenAt;
   }
 
-  private ensureCanView(requesterId: string, user: AuthUser): void {
-    // Staff (ADMIN/OPERATOR) vê todos os chamados; USER só os próprios.
-    if (isStaffRole(user.role)) return;
-    if (requesterId !== user.userId) {
+  private ensureCanView(
+    ticket: { requesterId: string; executorDepartmentId: string | null },
+    user: AuthUser,
+  ): void {
+    if (user.role === 'ADMIN') return; // ADMIN nunca é restrito.
+    if (user.role === 'OPERATOR') {
+      // OPERATOR sem setor definido mantém o comportamento atual (vê tudo).
+      if (user.departmentId && ticket.executorDepartmentId !== user.departmentId) {
+        throw new ForbiddenException('Você não tem acesso a chamados de outro setor');
+      }
+      return;
+    }
+    if (ticket.requesterId !== user.userId) {
       throw new ForbiddenException('Você não tem acesso a este chamado');
     }
   }

@@ -17,7 +17,13 @@ function makeService(over: {
     assign: async (id: string, assignedTo: string) => ({ id, assignedTo }),
     closeWithRating: async (args: unknown) => args,
     createWithHistory: async (input: Record<string, unknown>) => ({ id: 'new', ...input }),
-    updateStatusWithHistory: async (input: Record<string, unknown>) => ({ id: input.id, ...input }),
+    // O repo real retorna o ticket atualizado (com `status`, não `toStatus` — esse é só
+    // o parâmetro de entrada). O stub precisa espelhar isso para asserções em r.status.
+    updateStatusWithHistory: async (input: Record<string, unknown>) => ({
+      id: input.id,
+      status: input.toStatus,
+      ...input,
+    }),
     addComment: async (ticketId: string, authorId: string, body: string) => ({
       id: 'c1',
       ticketId,
@@ -323,4 +329,92 @@ test('create: categoria sem departmentId (não roteada) rejeita com 400', async 
     () => svc.create({ categoryId: 'c-sem-setor', subcategoryId: 's-sem-setor', departmentId: 'dep1' } as any, admin),
     (e) => e instanceof BadRequestException,
   );
+});
+
+// ---- listWhere (RBAC por setor) ----
+const operatorManutencao: AuthUser = {
+  userId: 'op2', email: 'op2@x', role: 'OPERATOR', mustChangePassword: false,
+  departmentId: 'dep-manutencao', isKiosk: false,
+};
+
+test('listWhere: OPERATOR sem departmentId vê tudo (regressão)', () => {
+  const svc = makeService({});
+  const where: any = (svc as any).listWhere({}, operator);
+  assert.equal(where.executorDepartmentId, undefined);
+});
+
+test('listWhere: OPERATOR com departmentId só vê o próprio setor executor', () => {
+  const svc = makeService({});
+  const where: any = (svc as any).listWhere({}, operatorManutencao);
+  assert.equal(where.executorDepartmentId, 'dep-manutencao');
+  assert.deepEqual(where.status, { notIn: ['PENDING_APPROVAL'] });
+});
+
+test('listWhere: ADMIN nunca é restrito por setor', () => {
+  const svc = makeService({});
+  const where: any = (svc as any).listWhere({}, admin);
+  assert.equal(where.executorDepartmentId, undefined);
+});
+
+test('listWhere: status explícito na query tem prioridade (OPERATOR pode filtrar PENDING_APPROVAL se quiser)', () => {
+  const svc = makeService({});
+  const where: any = (svc as any).listWhere({ status: 'PENDING_APPROVAL' }, operatorManutencao);
+  assert.equal(where.status, 'PENDING_APPROVAL');
+});
+
+// ---- ensureCanView / detail (RBAC por setor) ----
+test('detail: OPERATOR de outro setor não acessa o chamado (403)', () => {
+  const svc = makeService({
+    ticket: { id: 't1', requesterId: 'req1', executorDepartmentId: 'dep-limpeza', comments: [], attachments: [] },
+  });
+  // ensureCanView é síncrono (lança direto, não retorna Promise) — assert.throws é o
+  // matcher correto aqui; assert.rejects só captura throws síncronos dentro de fn async.
+  assert.throws(
+    () => (svc as any).ensureCanView(
+      { requesterId: 'req1', executorDepartmentId: 'dep-limpeza' },
+      operatorManutencao,
+    ),
+    (e: unknown) => e instanceof ForbiddenException,
+  );
+});
+
+test('detail: OPERATOR do mesmo setor acessa o chamado', () => {
+  const svc = makeService({});
+  (svc as any).ensureCanView(
+    { requesterId: 'req1', executorDepartmentId: 'dep-manutencao' },
+    operatorManutencao,
+  );
+  // não lança — sucesso implícito
+});
+
+// ---- assign/updateStatus respeitam o setor do OPERATOR ----
+test('assign: OPERATOR de outro setor não pode assumir chamado fora do seu setor', async () => {
+  const svc = makeService({
+    ticket: { id: 't1', requesterId: 'req1', executorDepartmentId: 'dep-limpeza' },
+    assignee: { id: 'op2', role: 'OPERATOR' },
+  });
+  await assert.rejects(
+    () => svc.assign('t1', 'op2', operatorManutencao),
+    (e) => e instanceof ForbiddenException,
+  );
+});
+
+test('updateStatus: rejeita PENDING_APPROVAL como alvo manual', async () => {
+  const svc = makeService({ ticket: { id: 't1', requesterId: 'req1', executorDepartmentId: null, status: 'OPEN' } });
+  await assert.rejects(
+    () => svc.updateStatus('t1', 'PENDING_APPROVAL', admin),
+    (e) => e instanceof BadRequestException,
+  );
+});
+
+// ---- approve ----
+test('approve: transiciona PENDING_APPROVAL -> OPEN', async () => {
+  const svc = makeService({ ticket: { id: 't1', requesterId: 'req1', status: 'PENDING_APPROVAL' } });
+  const r: any = await svc.approve('t1', admin);
+  assert.equal(r.status, 'OPEN');
+});
+
+test('approve: rejeita chamado que não está PENDING_APPROVAL', async () => {
+  const svc = makeService({ ticket: { id: 't1', requesterId: 'req1', status: 'OPEN' } });
+  await assert.rejects(() => svc.approve('t1', admin), (e) => e instanceof BadRequestException);
 });
