@@ -10,12 +10,14 @@ function makeService(over: {
   assignee?: Record<string, unknown> | null;
   subcategory?: Record<string, unknown> | null;
   department?: Record<string, unknown> | null;
+  departmentsById?: Record<string, Record<string, unknown>>;
 }) {
   const repo = {
     findById: async () => over.ticket ?? null,
     assign: async (id: string, assignedTo: string) => ({ id, assignedTo }),
     closeWithRating: async (args: unknown) => args,
     createWithHistory: async (input: Record<string, unknown>) => ({ id: 'new', ...input }),
+    updateStatusWithHistory: async (input: Record<string, unknown>) => ({ id: input.id, ...input }),
     addComment: async (ticketId: string, authorId: string, body: string) => ({
       id: 'c1',
       ticketId,
@@ -35,7 +37,13 @@ function makeService(over: {
     }),
   } as any;
   const users = { findById: async () => over.assignee ?? null } as any;
-  const departments = { findById: async () => over.department ?? { id: 'dep1', priorityWeight: 3 } } as any;
+  // Por id (necessário: create() busca o setor do solicitante E o setor executor,
+  // que podem ser departamentos diferentes). Sem over.departmentsById, cai no
+  // comportamento antigo (mesmo departamento pra qualquer id — regressão dos testes existentes).
+  const departments = {
+    findById: async (id: string) =>
+      over.departmentsById?.[id] ?? over.department ?? { id: 'dep1', priorityWeight: 3, requiresApproval: false },
+  } as any;
   const categories = { findSubcategory: async () => over.subcategory ?? null } as any;
   // Stub do PriorityService: cálculo determinístico p/ asserção (complexidade + peso do setor).
   const priority = {
@@ -44,9 +52,9 @@ function makeService(over: {
   return new TicketsService(repo, departments, users, priority, {} as any, categories);
 }
 
-const operator: AuthUser = { userId: 'op1', email: 'op@x', role: 'OPERATOR', mustChangePassword: false };
-const admin: AuthUser = { userId: 'ad1', email: 'ad@x', role: 'ADMIN', mustChangePassword: false };
-const requester: AuthUser = { userId: 'req1', email: 'u@x', role: 'USER', mustChangePassword: false };
+const operator: AuthUser = { userId: 'op1', email: 'op@x', role: 'OPERATOR', mustChangePassword: false, departmentId: null, isKiosk: false };
+const admin: AuthUser = { userId: 'ad1', email: 'ad@x', role: 'ADMIN', mustChangePassword: false, departmentId: null, isKiosk: false };
+const requester: AuthUser = { userId: 'req1', email: 'u@x', role: 'USER', mustChangePassword: false, departmentId: null, isKiosk: false };
 
 // ---- assign ----
 test('assign: OPERATOR não pode atribuir a outra pessoa (só assume para si)', async () => {
@@ -88,7 +96,7 @@ const subRedefinicao = {
   id: 's1',
   categoryId: 'c1',
   name: 'Redefinição de senha',
-  category: { id: 'c1', name: 'Acesso e Senhas' },
+  category: { id: 'c1', name: 'Acesso e Senhas', departmentId: 'dep1' },
   details: [],
 };
 
@@ -97,7 +105,7 @@ const subMonitor = {
   id: 's2',
   categoryId: 'c2',
   name: 'Monitor',
-  category: { id: 'c2', name: 'Computador e Equipamentos' },
+  category: { id: 'c2', name: 'Computador e Equipamentos', departmentId: 'dep1' },
   details: [
     { id: 'd1', name: 'Não liga' },
     { id: 'd2', name: 'Sem imagem ou sinal' },
@@ -247,4 +255,72 @@ test('hideByRole: ADMIN vê tudo', () => {
   const svc = makeService({});
   const r = (svc as any).hideByRole({ ...ticketFields }, admin);
   assert.deepEqual(r, ticketFields);
+});
+
+// ---- create (roteamento categoria→setor executor + aprovação) ----
+const subManutencaoEletrica = {
+  id: 's-eletrica',
+  categoryId: 'c-eletrica',
+  name: 'Solicitação geral',
+  category: { id: 'c-eletrica', name: 'Elétrica', departmentId: 'dep-manutencao' },
+  details: [],
+};
+
+const subPresidencia = {
+  id: 's-presidencia',
+  categoryId: 'c-presidencia',
+  name: 'Solicitação geral',
+  category: { id: 'c-presidencia', name: 'Assessoria', departmentId: 'dep-presidencia' },
+  details: [],
+};
+
+const subSemSetor = {
+  id: 's-sem-setor',
+  categoryId: 'c-sem-setor',
+  name: 'Solicitação geral',
+  category: { id: 'c-sem-setor', name: 'Sem setor', departmentId: null },
+  details: [],
+};
+
+test('create: resolve executorDepartmentId pela categoria e nasce OPEN quando o setor não exige aprovação', async () => {
+  const svc = makeService({
+    subcategory: subManutencaoEletrica,
+    departmentsById: {
+      dep1: { id: 'dep1', priorityWeight: 3, requiresApproval: false },
+      'dep-manutencao': { id: 'dep-manutencao', priorityWeight: 4, requiresApproval: false },
+    },
+  });
+  const r: any = await svc.create(
+    { categoryId: 'c-eletrica', subcategoryId: 's-eletrica', departmentId: 'dep1' } as any,
+    admin,
+  );
+  assert.equal(r.executorDepartmentId, 'dep-manutencao');
+  assert.equal(r.status, 'OPEN');
+});
+
+test('create: setor executor com requiresApproval nasce PENDING_APPROVAL (SLA calculado igual)', async () => {
+  const svc = makeService({
+    subcategory: subPresidencia,
+    departmentsById: {
+      dep1: { id: 'dep1', priorityWeight: 3, requiresApproval: false },
+      'dep-presidencia': { id: 'dep-presidencia', priorityWeight: 5, requiresApproval: true },
+    },
+  });
+  const r: any = await svc.create(
+    { categoryId: 'c-presidencia', subcategoryId: 's-presidencia', departmentId: 'dep1' } as any,
+    admin,
+  );
+  assert.equal(r.executorDepartmentId, 'dep-presidencia');
+  assert.equal(r.status, 'PENDING_APPROVAL');
+  // Prioridade calculada normalmente pelo peso do setor do SOLICITANTE (dep1, peso 3) —
+  // roteamento/aprovação do setor executor não afeta o cálculo de prioridade/SLA.
+  assert.equal(r.priority, 'PRIO(MEDIUM,3)');
+});
+
+test('create: categoria sem departmentId (não roteada) rejeita com 400', async () => {
+  const svc = makeService({ subcategory: subSemSetor });
+  await assert.rejects(
+    () => svc.create({ categoryId: 'c-sem-setor', subcategoryId: 's-sem-setor', departmentId: 'dep1' } as any, admin),
+    (e) => e instanceof BadRequestException,
+  );
 });

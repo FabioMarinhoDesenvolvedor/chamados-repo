@@ -106,13 +106,26 @@ export class TicketsService {
       ? `${subcategory.category.name} › ${subcategory.name} › ${detailName}`
       : `${subcategory.category.name} › ${subcategory.name}`;
 
+    // Roteamento: setor EXECUTOR vem da categoria (não do departamento do solicitante).
+    // Categoria sem setor mapeado é erro de dado (não deveria acontecer via UI guiada).
+    const executorDepartmentId = subcategory.category.departmentId;
+    if (!executorDepartmentId) {
+      throw new BadRequestException('Categoria sem setor executor configurado');
+    }
+    const executorDepartment = await this.departments.findById(executorDepartmentId);
+    if (!executorDepartment) throw new NotFoundException('Setor executor não encontrado');
+
     // Prioridade/SLA automáticos na abertura: a complexidade-base vem da categorização
     // (detalhe > subcategoria > MÉDIA como padrão) e a prioridade é derivada pela matriz
-    // com o peso do setor. O chamado NASCE priorizado — sem depender de triagem manual.
+    // com o peso do setor. O chamado NASCE priorizado — sem depender de triagem manual,
+    // mesmo quando o setor exige aprovação (aprovação não represa o SLA — decisão aprovada).
     const detail = detailOptionId ? details.find((d) => d.id === detailOptionId) : null;
     const complexity: Complexity =
       detail?.baseComplexity ?? subcategory.baseComplexity ?? 'MEDIUM';
     const priority = this.priority.compute(complexity, department.priorityWeight);
+    const status: TicketStatus = executorDepartment.requiresApproval
+      ? 'PENDING_APPROVAL'
+      : 'OPEN';
 
     const created = await this.repo.createWithHistory({
       title,
@@ -122,7 +135,9 @@ export class TicketsService {
       detailOptionId,
       complexity,
       priority,
+      status,
       departmentId,
+      executorDepartmentId,
       requesterId,
     });
     // Retorna já projetado (SLA derivado + projeção por papel), como update()/updateStatus(),

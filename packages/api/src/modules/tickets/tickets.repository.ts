@@ -59,6 +59,7 @@ export class TicketsRepository {
         requester: true,
         assignee: true,
         department: true,
+        executorDepartment: true,
         category: true,
         subcategory: true,
         detailOption: true,
@@ -101,12 +102,14 @@ export class TicketsRepository {
     detailOptionId: string | null;
     complexity: Complexity;
     priority: Priority;
+    status: TicketStatus;
     departmentId: string;
+    executorDepartmentId: string;
     requesterId: string;
   }) {
     return this.prisma.$transaction(async (tx) => {
-      // Nasce OPEN e já priorizado (complexidade/prioridade automáticas), com o SLA
-      // contando a partir da abertura — não depende mais de triagem manual.
+      // Prioridade/SLA sempre calculados na criação (regra aprovada), independente
+      // do chamado nascer OPEN ou PENDING_APPROVAL (aprovação não represa o SLA).
       const ticket = await tx.ticket.create({
         data: {
           title: input.title,
@@ -118,9 +121,10 @@ export class TicketsRepository {
             : undefined,
           complexity: input.complexity,
           priority: input.priority,
-          status: 'OPEN',
+          status: input.status,
           slaStartedAt: new Date(),
           department: { connect: { id: input.departmentId } },
+          executorDepartment: { connect: { id: input.executorDepartmentId } },
           requester: { connect: { id: input.requesterId } },
           lastActivityAt: new Date(),
           lastActivityBy: input.requesterId,
@@ -130,7 +134,7 @@ export class TicketsRepository {
         data: {
           ticketId: ticket.id,
           fromStatus: null,
-          toStatus: 'OPEN',
+          toStatus: input.status,
           changedBy: input.requesterId,
         },
       });
