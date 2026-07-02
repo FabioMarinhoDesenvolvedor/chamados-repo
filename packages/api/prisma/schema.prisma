@@ -29,6 +29,7 @@ enum Priority {
 
 enum TicketStatus {
   TRIAGE
+  PENDING_APPROVAL
   OPEN
   IN_PROGRESS
   RESOLVED
@@ -42,6 +43,7 @@ model User {
   passwordHash String   @map("password_hash")
   role         Role     @default(USER)
   mustChangePassword Boolean @default(true) @map("must_change_password")
+  isKiosk      Boolean  @default(false) @map("is_kiosk")
   departmentId String?  @map("department_id")
   department   Department? @relation(fields: [departmentId], references: [id])
   createdAt    DateTime @default(now()) @map("created_at")
@@ -58,13 +60,19 @@ model User {
 }
 
 model Department {
-  id             String   @id @default(uuid())
-  name           String   @unique
-  priorityWeight Int      @map("priority_weight")
-  createdAt      DateTime @default(now()) @map("created_at")
+  id                String   @id @default(uuid())
+  name              String   @unique
+  priorityWeight    Int      @map("priority_weight")
+  isRequesterDept   Boolean  @default(true)  @map("is_requester_dept")
+  isExecutorDept    Boolean  @default(false) @map("is_executor_dept")
+  requiresApproval  Boolean  @default(false) @map("requires_approval")
+  notificationEmail String?  @map("notification_email")
+  createdAt         DateTime @default(now()) @map("created_at")
 
-  users   User[]
-  tickets Ticket[]
+  users           User[]
+  tickets         Ticket[]                  // solicitante (campo existente, sem mudança)
+  executedTickets Ticket[]         @relation("executorDepartment")
+  categories      TicketCategory[]
 
   @@map("departments")
 }
@@ -83,8 +91,13 @@ model Ticket {
   complexity   Complexity?
   priority     Priority?
   status       TicketStatus @default(TRIAGE)
-  departmentId String       @map("department_id")
+  departmentId String       @map("department_id") // setor do SOLICITANTE (não muda de sentido)
   department   Department   @relation(fields: [departmentId], references: [id])
+  // Setor EXECUTOR (destino), resolvido de category.departmentId na criação — denormalizado.
+  executorDepartmentId String?     @map("executor_department_id")
+  executorDepartment   Department? @relation("executorDepartment", fields: [executorDepartmentId], references: [id], onDelete: Restrict)
+  // Capturado só quando requester.isKiosk = true (totem) — texto livre de local/sala.
+  originLocation String?      @map("origin_location")
   requesterId  String       @map("requester_id")
   requester    User         @relation("requester", fields: [requesterId], references: [id])
   assignedTo   String?      @map("assigned_to")
@@ -110,20 +123,26 @@ model Ticket {
   @@index([categoryId])
   @@index([subcategoryId])
   @@index([detailOptionId])
+  @@index([executorDepartmentId])
   @@map("tickets")
 }
 
 model TicketCategory {
-  id        String   @id @default(uuid())
-  slug      String   @unique
-  name      String
-  icon      String // nome do ícone lucide-react
-  sortOrder Int      @map("sort_order")
-  createdAt DateTime @default(now()) @map("created_at")
+  id           String      @id @default(uuid())
+  slug         String      @unique
+  name         String
+  icon         String // nome do ícone lucide-react
+  sortOrder    Int         @map("sort_order")
+  // Roteamento: setor executor de destino. Nullable pra não quebrar categorias
+  // antigas; só pode referenciar Department.isExecutorDept = true (garantido no seed).
+  departmentId String?     @map("department_id")
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  createdAt    DateTime    @default(now()) @map("created_at")
 
   subcategories TicketSubcategory[]
   tickets       Ticket[]
 
+  @@index([departmentId])
   @@map("ticket_categories")
 }
 
