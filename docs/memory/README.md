@@ -22,12 +22,15 @@
 - decisions/ui-theme-grena.md
 - decisions/anexos-imagens.md
 - decisions/terceiro-nivel-categoria.md
+- decisions/rbac-setor-executor.md
+- decisions/aprovacao-chamados.md
 
 ## Gotchas
 - gotchas/responsividade.md
 - gotchas/shared-cjs-rollup.md
 - gotchas/windows-brace-expansion.md
 - gotchas/postgres-enum-default.md
+- gotchas/migration-seed-ordem-vs-entidade-existente.md
 
 ## Procedures
 - procedures/setup-local.md
@@ -46,3 +49,4 @@
 - handoffs/sessao-2026-07-01-backlog.md  ← PENDÊNCIAS (Item 2: SLA/complexidade automáticos)
 - handoffs/sessao-2026-07-01-terceiro-nivel.md  ← Item 1 entregue (3º nível de categoria/detalhe); deploy pendente
 - handoffs/sessao-2026-07-01-prazo-automatico.md  ← Item 2: prazo/complexidade automáticos; deploy pendente. PRÓXIMO: simplificar abertura p/ leigos
+- handoffs/sessao-2026-07-02-multi-setorial-plano1.md  ← Plano 1/4 (backend core multi-setorial) completo; deploy pendente. PRÓXIMO: Planos 2-4 (notificação, frontend, totem) + revisão final de branch

@@ -103,3 +103,24 @@ on-the-fly (`slaDueAt = slaStartedAt + horas`), nunca persistido como prazo.
 O **usuário NÃO vê prioridade/complexidade** (escondidas no front), apenas a promessa
 "Prazo de atendimento: até X horas". O **admin** vê "SLA estourado" quando o prazo passa
 sem resolução. STATUS: APROVADA por Fabio em 2026-06-29.
+
+## Multi-setorial: roteamento, RBAC de setor executor e aprovação
+- **15 setores reais** (TI, RH, Tesouraria, Presidência, CEO, Manutenção, Limpeza, Almoxarifado,
+  Compras, Comunicações, Gestão de Contratos, Secretaria, Secretaria da Presidência, Jurídico,
+  Eventos), cada um com `priorityWeight` real e 3 flags novas: `isRequesterDept`, `isExecutorDept`,
+  `requiresApproval`. Tabela completa em `decisions/rbac-setor-executor.md`.
+- **Dois departamentos no chamado**: `departmentId` (setor do **solicitante**, alimenta a matriz
+  de prioridade — inalterado) e `executorDepartmentId` (setor **executor**, novo — resolvido
+  automaticamente de `TicketCategory.departmentId` na criação, não escolhido pelo usuário).
+- **RBAC de `OPERATOR` por setor**: um OPERATOR com `User.departmentId` preenchido só vê/age em
+  chamados cujo `executorDepartmentId` bate com o seu (`listWhere`, `stats`, `detail`, `assign`,
+  `updateStatus`, comentários, anexos). OPERATOR sem `departmentId` (equipe global) vê tudo.
+  **ADMIN nunca é restrito por setor.** Ver [[rbac-setor-executor]].
+- **Aprovação**: setores com `requiresApproval=true` (só Presidência, hoje) fazem o chamado nascer
+  `PENDING_APPROVAL` em vez de `OPEN`. `sla_started_at` grava na criação de qualquer forma (sem
+  exceção). Qualquer ADMIN aprova via `PATCH /tickets/:id/approve` (`PENDING_APPROVAL` → `OPEN`).
+  `PENDING_APPROVAL` não pode ser setado manualmente por `PATCH /tickets/:id`. Ver [[aprovacao-chamados]].
+- **Notificação híbrida por e-mail** (`Department.notificationEmail` + outbox, Plano 2), o
+  **frontend** do fluxo multi-setorial (macro-bloco, fila por setor, aprovação — Plano 3) e o
+  **totem** (`User.isKiosk`, Plano 4) fazem parte do mesmo design mas ainda não foram
+  implementados — só o backend core (Plano 1) está pronto.
