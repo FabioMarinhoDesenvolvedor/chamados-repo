@@ -50,3 +50,4 @@
 - handoffs/sessao-2026-07-01-terceiro-nivel.md  ← Item 1 entregue (3º nível de categoria/detalhe); deploy pendente
 - handoffs/sessao-2026-07-01-prazo-automatico.md  ← Item 2: prazo/complexidade automáticos; deploy pendente. PRÓXIMO: simplificar abertura p/ leigos
 - handoffs/sessao-2026-07-02-multi-setorial-plano1.md  ← Plano 1/4 (backend core multi-setorial) completo; deploy pendente. PRÓXIMO: Planos 2-4 (notificação, frontend, totem) + revisão final de branch
+- handoffs/sessao-2026-07-05-prompt-template-v2.md  ← docs/PROMPT-TEMPLATE.md reescrito (bootstrap greenfield v2, práticas do repo + Akita); só documentação
