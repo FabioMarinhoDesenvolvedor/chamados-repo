@@ -31,14 +31,23 @@ export class TicketsRepository {
     return this.prisma.ticket.groupBy({ by: ['status'], where, _count: { _all: true } });
   }
 
-  // Contagem de não-lidos direto no banco (sem carregar os chamados).
-  async countUnread(userId: string, onlyOwn: boolean): Promise<number> {
-    const visibility = onlyOwn ? Prisma.sql`AND t.requester_id = ${userId}` : Prisma.empty;
+  // Contagem de não-lidos direto no banco (sem carregar os chamados). O escopo espelha a
+  // visibilidade por papel: `onlyOwn` (USER) filtra por solicitante; `executorDepartmentId`
+  // (OPERATOR escopado) filtra pelo setor executor.
+  async countUnread(
+    userId: string,
+    scope: { onlyOwn: boolean; executorDepartmentId?: string },
+  ): Promise<number> {
+    const ownFilter = scope.onlyOwn ? Prisma.sql`AND t.requester_id = ${userId}` : Prisma.empty;
+    const deptFilter = scope.executorDepartmentId
+      ? Prisma.sql`AND t.executor_department_id = ${scope.executorDepartmentId}`
+      : Prisma.empty;
     const rows = await this.prisma.$queryRaw<{ count: number }[]>`
       SELECT count(*)::int AS count
       FROM tickets t
       WHERE t.last_activity_by IS DISTINCT FROM ${userId}
-        ${visibility}
+        ${ownFilter}
+        ${deptFilter}
         AND NOT EXISTS (
           SELECT 1 FROM ticket_read_state r
           WHERE r.ticket_id = t.id

@@ -319,7 +319,15 @@ export class TicketsService {
   }
 
   async unreadCount(user: AuthUser) {
-    const count = await this.repo.countUnread(user.userId, user.role === 'USER');
+    // Não-lidos respeitam a mesma visibilidade da listagem: USER só os próprios; OPERATOR
+    // escopado só o próprio setor executor; ADMIN e OPERATOR global (sem setor) veem tudo.
+    const scope =
+      user.role === 'USER'
+        ? { onlyOwn: true }
+        : user.role === 'OPERATOR' && user.departmentId
+          ? { onlyOwn: false, executorDepartmentId: user.departmentId }
+          : { onlyOwn: false };
+    const count = await this.repo.countUnread(user.userId, scope);
     return { count };
   }
 
@@ -332,6 +340,14 @@ export class TicketsService {
     const ticket = await this.repo.findById(id);
     if (!ticket) throw new NotFoundException('Chamado não encontrado');
     this.ensureCanView(ticket, user);
+
+    // Gate de aprovação: a ÚNICA saída de PENDING_APPROVAL é approve() (ADMIN). Sem esta
+    // guarda, um OPERATOR poderia "aprovar por fora" mudando o status direto para OPEN/IN_PROGRESS.
+    if (ticket.status === 'PENDING_APPROVAL') {
+      throw new BadRequestException(
+        'Chamado aguardando aprovação — use o endpoint de aprovação (não é possível mudar o status manualmente)',
+      );
+    }
 
     const resolvedAt =
       status === 'RESOLVED' ? new Date() : status === 'CLOSED' ? ticket.resolvedAt : null;

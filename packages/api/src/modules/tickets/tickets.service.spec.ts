@@ -4,6 +4,9 @@ import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { TicketsService } from './tickets.service';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 
+// Captura os argumentos da última chamada a repo.countUnread (escopo por papel/setor).
+let lastCountUnreadArgs: { userId: string; scope: unknown } | undefined;
+
 // Constrói o service com dependências stubadas (só o necessário para cada caso).
 function makeService(over: {
   ticket?: Record<string, unknown>;
@@ -24,6 +27,11 @@ function makeService(over: {
       status: input.toStatus,
       ...input,
     }),
+    // Registra os argumentos de countUnread para asserção do escopo por setor (Issue 4).
+    countUnread: async (userId: string, scope: unknown) => {
+      lastCountUnreadArgs = { userId, scope };
+      return 7;
+    },
     addComment: async (ticketId: string, authorId: string, body: string) => ({
       id: 'c1',
       ticketId,
@@ -405,6 +413,41 @@ test('updateStatus: rejeita PENDING_APPROVAL como alvo manual', async () => {
     () => svc.updateStatus('t1', 'PENDING_APPROVAL', admin),
     (e) => e instanceof BadRequestException,
   );
+});
+
+test('updateStatus: rejeita transição a partir de PENDING_APPROVAL (só approve() tira do gate)', async () => {
+  // Furo do gate de aprovação: um OPERATOR não pode "aprovar por fora" mudando o status
+  // direto de PENDING_APPROVAL para OPEN/IN_PROGRESS — a única saída é o approve() (ADMIN).
+  const svc = makeService({
+    ticket: { id: 't1', requesterId: 'req1', executorDepartmentId: null, status: 'PENDING_APPROVAL' },
+  });
+  await assert.rejects(
+    () => svc.updateStatus('t1', 'IN_PROGRESS', operator),
+    (e) => e instanceof BadRequestException,
+  );
+});
+
+// ---- unreadCount (escopo por setor executor — Issue 4) ----
+test('unreadCount: OPERATOR escopado conta não-lidos só do próprio setor executor', async () => {
+  const svc = makeService({});
+  const r = await svc.unreadCount(operatorManutencao);
+  assert.equal(r.count, 7);
+  assert.equal((lastCountUnreadArgs?.scope as any).executorDepartmentId, 'dep-manutencao');
+  assert.equal((lastCountUnreadArgs?.scope as any).onlyOwn, false);
+});
+
+test('unreadCount: OPERATOR global (sem setor) conta tudo — regressão', async () => {
+  const svc = makeService({});
+  await svc.unreadCount(operator);
+  assert.equal((lastCountUnreadArgs?.scope as any).executorDepartmentId, undefined);
+  assert.equal((lastCountUnreadArgs?.scope as any).onlyOwn, false);
+});
+
+test('unreadCount: USER conta só os próprios chamados', async () => {
+  const svc = makeService({});
+  await svc.unreadCount(requester);
+  assert.equal((lastCountUnreadArgs?.scope as any).onlyOwn, true);
+  assert.equal((lastCountUnreadArgs?.scope as any).executorDepartmentId, undefined);
 });
 
 // ---- approve ----
