@@ -51,3 +51,4 @@
 - handoffs/sessao-2026-07-01-prazo-automatico.md  ← Item 2: prazo/complexidade automáticos; deploy pendente. PRÓXIMO: simplificar abertura p/ leigos
 - handoffs/sessao-2026-07-02-multi-setorial-plano1.md  ← Plano 1/4 (backend core multi-setorial) completo; deploy pendente. PRÓXIMO: Planos 2-4 (notificação, frontend, totem) + revisão final de branch
 - handoffs/sessao-2026-07-05-prompt-template-v2.md  ← docs/PROMPT-TEMPLATE.md reescrito (bootstrap greenfield v2, práticas do repo + Akita); só documentação
+- handoffs/sessao-2026-07-06-revisao-plano1.md  ← Revisão final do Plano 1: 2 bugs corrigidos (gate de aprovação + unread por setor), 48/48 testes. PENDENTE: smoke com banco no ar + decisão de merge
