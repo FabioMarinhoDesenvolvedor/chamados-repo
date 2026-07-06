@@ -36,6 +36,12 @@ enum TicketStatus {
   CLOSED
 }
 
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
 model User {
   id           String   @id @default(uuid())
   name         String
@@ -116,6 +122,7 @@ model Ticket {
   history     TicketStatusHistory[]
   readStates  TicketReadState[]
   attachments TicketAttachment[]
+  notifications NotificationOutbox[]
 
   @@index([status, priority])
   @@index([requesterId])
@@ -240,4 +247,21 @@ model TicketReadState {
   @@unique([userId, ticketId])
   @@index([userId])
   @@map("ticket_read_state")
+}
+
+model NotificationOutbox {
+  id        String             @id @default(uuid())
+  ticketId  String             @map("ticket_id")
+  ticket    Ticket             @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  toEmail   String             @map("to_email")
+  subject   String
+  body      String
+  status    NotificationStatus @default(PENDING)
+  attempts  Int                @default(0)
+  lastError String?            @map("last_error")
+  createdAt DateTime           @default(now()) @map("created_at")
+  sentAt    DateTime?          @map("sent_at")
+
+  @@index([status])
+  @@map("notification_outbox")
 }
