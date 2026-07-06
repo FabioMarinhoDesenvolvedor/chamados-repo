@@ -24,6 +24,7 @@
 - decisions/terceiro-nivel-categoria.md
 - decisions/rbac-setor-executor.md
 - decisions/aprovacao-chamados.md
+- decisions/notificacao-hibrida-email.md
 
 ## Gotchas
 - gotchas/responsividade.md

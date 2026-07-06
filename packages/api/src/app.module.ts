@@ -10,6 +10,7 @@ import { UsersModule } from './modules/users/users.module';
 import { DepartmentsModule } from './modules/departments/departments.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { TicketsModule } from './modules/tickets/tickets.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { BackupModule } from './modules/backup/backup.module';
 
@@ -32,6 +33,7 @@ import { BackupModule } from './modules/backup/backup.module';
     DepartmentsModule,
     CategoriesModule,
     TicketsModule,
+    NotificationsModule,
     ReportsModule,
     BackupModule,
   ],

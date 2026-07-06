@@ -57,6 +57,12 @@ npm run dev              # sobe shared (watch) + api + web
 | `BACKUP_KEEP` | `14` | quantos backups manter |
 | `BACKUP_DOCKER_CONTAINER` | `chamados-db` | container onde roda o `pg_dump` |
 | `PG_DUMP_PATH` | `pg_dump` | caminho do binário (se não usar Docker) |
+| `SMTP_HOST` | *(vazio)* | host SMTP para notificação por e-mail; **sem valor = modo STUB** (só loga, não envia) |
+| `SMTP_PORT` | `587` | porta do servidor SMTP |
+| `SMTP_USER` | *(vazio)* | usuário de autenticação SMTP |
+| `SMTP_PASS` | *(vazio)* | senha de autenticação SMTP |
+| `SMTP_FROM` | `chamados@clube.local` | remetente do e-mail de notificação |
+| `APP_URL` | *(vazio)* | URL base do sistema, usada no link do chamado (`${APP_URL}/tickets/:id`) dentro do e-mail |
 
 > Para anexos e backups ficarem **fora do servidor** de verdade, aponte `ATTACHMENTS_DIR` e
 > `BACKUP_DIR` para um drive de rede / disco externo / pasta sincronizada.
