@@ -24,6 +24,9 @@ export class MailWorker {
       for (const row of pending) {
         try {
           await this.mailer.send(row.toEmail, row.subject, row.body);
+          // Se `send` funcionar mas `markSent` falhar (blip no banco), a linha continua
+          // PENDING e o e-mail pode ser reenviado no próximo ciclo — janela aceitável no
+          // MVP (processo único); uma guarda de idempotência pode fechar isso depois.
           await this.outbox.markSent(row.id);
         } catch (err) {
           const msg = (err as Error).message;
@@ -35,6 +38,10 @@ export class MailWorker {
           }
         }
       }
+    } catch (err) {
+      // Falha no ciclo em si (ex.: findPending com o banco fora do ar) não pode virar
+      // rejeição não tratada — as linhas continuam PENDING e o próximo tick tenta de novo.
+      this.logger.error(`Ciclo de notificações falhou: ${(err as Error).message}`);
     } finally {
       this.running = false;
     }

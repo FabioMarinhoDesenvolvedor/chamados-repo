@@ -48,3 +48,28 @@ test('MailWorker: erro no envio chama markFailed com as tentativas atuais', asyn
   assert.equal(calls.sent.length, 0);
   assert.deepEqual(calls.failed, [{ id: 'n1', attempts: 2 }]); // markFailed decide o FAILED
 });
+
+test('MailWorker: falha no findPending (ciclo inteiro) é logada, não rejeitada', async () => {
+  const outbox = {
+    findPending: async () => {
+      throw new Error('conexão com o banco caiu');
+    },
+    markSent: async () => {
+      throw new Error('não deveria ser chamado');
+    },
+    markFailed: async () => {
+      throw new Error('não deveria ser chamado');
+    },
+  } as any;
+  const mailer = { send: async () => undefined } as any;
+  const worker = new MailWorker(outbox, mailer);
+  const errorCalls: string[] = [];
+  (worker as any).logger = {
+    error: (msg: string) => errorCalls.push(msg),
+    log: () => undefined,
+  };
+
+  await assert.doesNotReject(() => worker.process());
+  assert.equal(errorCalls.length, 1);
+  assert.match(errorCalls[0], /conexão com o banco caiu/);
+});
