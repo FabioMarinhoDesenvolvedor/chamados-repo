@@ -32,4 +32,11 @@ Precisava de uma forma de um OPERATOR só ver/agir nos chamados do próprio seto
   foram auditados e atualizados.
 - Roteamento: `TicketCategory.departmentId` é a fonte de verdade de "pra qual setor esse tipo de
   chamado vai" — `TicketsService.create()` resolve `executorDepartmentId` a partir dela.
+- **Chamados legados ficam com `executorDepartmentId = NULL`** (coluna aditiva, sem backfill —
+  decisão mantida por Fabio na revisão final do Plano 1, 2026-07-06). É seguro **enquanto a TI
+  original seguir como equipe global sem `departmentId`** (vê tudo, inclusive NULL). **Risco
+  latente:** se um dia um operador de TI ganhar `departmentId` (escopar a TI), os chamados
+  legados NULL somem da fila dele — nesse momento é obrigatório rodar um backfill aditivo
+  (`UPDATE tickets SET executor_department_id = (SELECT id FROM departments WHERE name='TI')
+  WHERE executor_department_id IS NULL`; 0 linhas em banco novo).
 - Ver também: [[aprovacao-chamados]], business-rules.md (seção "RBAC de setor executor").

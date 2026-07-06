@@ -26,9 +26,18 @@
    `Department.notificationEmail` (1 e-mail por setor, nullable). **Isso estende — não
    substitui — a decisão de 26/06.** Uma nova decisão (`decisions/notificacao-hibrida-email.md`)
    deve ser criada na implementação, documentando a extensão.
-6. **Setores (tabela final, não reabrir)**. `priorityWeight` reflete a **urgência operacional
-   de quem recebe o chamado** (setor executor), não a importância hierárquica do setor —
-   âncoras dadas por Fabio: Presidência=5, Limpeza=2:
+6. **Setores (tabela final, não reabrir)**. `priorityWeight` é o peso do setor na **matriz de
+   prioridade**, aplicado ao setor do **solicitante** que abre o chamado (consistente com a
+   decisão #1 — roteamento/setor executor NÃO alteram o cálculo). Âncoras dadas por Fabio:
+   Presidência=5, Limpeza=2:
+
+   > **Correção (2026-07-06):** a redação original dizia que `priorityWeight` refletia "a urgência
+   > de quem recebe (setor executor)", o que contradizia a decisão #1 (matriz usa o setor do
+   > solicitante). Revisão final do Plano 1 pegou a inconsistência; Fabio confirmou **peso do
+   > solicitante** (implementação já estava assim). Consequência assumida: o `priorityWeight` de
+   > setores só-executores (ex.: Limpeza=2, Manutenção=4) só entra na matriz se aquele setor
+   > também abrir chamados — para chamados cross-setor vale o peso de quem abre. Ver
+   > `decisions/rbac-setor-executor.md`.
 
    | Setor | S/E/A | Executor? | Requester? | Aprovação? | priorityWeight |
    |---|---|---|---|---|---|
