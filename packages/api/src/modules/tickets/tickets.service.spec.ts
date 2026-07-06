@@ -63,7 +63,10 @@ function makeService(over: {
   const priority = {
     compute: (complexity: string, weight: number) => `PRIO(${complexity},${weight})`,
   } as any;
-  return new TicketsService(repo, departments, users, priority, {} as any, categories);
+  const config = {
+    get: (k: string) => (k === 'APP_URL' ? 'https://chamados.local' : undefined),
+  } as any;
+  return new TicketsService(repo, departments, users, priority, {} as any, categories, config);
 }
 
 const operator: AuthUser = { userId: 'op1', email: 'op@x', role: 'OPERATOR', mustChangePassword: false, departmentId: null, isKiosk: false };
@@ -337,6 +340,44 @@ test('create: categoria sem departmentId (não roteada) rejeita com 400', async 
     () => svc.create({ categoryId: 'c-sem-setor', subcategoryId: 's-sem-setor', departmentId: 'dep1' } as any, admin),
     (e) => e instanceof BadRequestException,
   );
+});
+
+test('create: setor executor com notificationEmail enfileira notificação (payload no repo)', async () => {
+  const svc = makeService({
+    subcategory: subManutencaoEletrica,
+    assignee: { id: 'ad1', name: 'Admin', role: 'ADMIN' }, // vira o requester carregado
+    departmentsById: {
+      dep1: { id: 'dep1', name: 'Tesouraria', priorityWeight: 3, requiresApproval: false },
+      'dep-manutencao': {
+        id: 'dep-manutencao',
+        name: 'Manutenção',
+        priorityWeight: 4,
+        requiresApproval: false,
+        notificationEmail: 'manutencao@clube.local',
+      },
+    },
+  });
+  const r: any = await svc.create(
+    { categoryId: 'c-eletrica', subcategoryId: 's-eletrica', departmentId: 'dep1' } as any,
+    admin,
+  );
+  assert.equal(r.notification.toEmail, 'manutencao@clube.local');
+  assert.match(r.notification.subject, /^Novo chamado — /);
+});
+
+test('create: setor executor sem notificationEmail não enfileira notificação', async () => {
+  const svc = makeService({
+    subcategory: subManutencaoEletrica,
+    departmentsById: {
+      dep1: { id: 'dep1', name: 'Tesouraria', priorityWeight: 3, requiresApproval: false },
+      'dep-manutencao': { id: 'dep-manutencao', name: 'Manutenção', priorityWeight: 4, requiresApproval: false },
+    },
+  });
+  const r: any = await svc.create(
+    { categoryId: 'c-eletrica', subcategoryId: 's-eletrica', departmentId: 'dep1' } as any,
+    admin,
+  );
+  assert.equal(r.notification, undefined);
 });
 
 // ---- listWhere (RBAC por setor) ----

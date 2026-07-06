@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
@@ -21,6 +22,7 @@ import { PriorityService } from './priority.service';
 import { SlaService } from './sla.service';
 import { TicketsRepository } from './tickets.repository';
 import { attachmentUrl, attachmentsDir, ensureAttachmentsDir } from './attachments.config';
+import { buildTicketEmail } from '../notifications/notification-email';
 
 // Anexo cru do banco → DTO público (troca o filename físico por uma URL servível).
 interface RawAttachment {
@@ -56,6 +58,7 @@ export class TicketsService {
     private readonly priority: PriorityService,
     private readonly sla: SlaService,
     private readonly categories: CategoriesRepository,
+    private readonly config: ConfigService,
   ) {}
 
   async create(dto: CreateTicketDto, user: AuthUser) {
@@ -127,7 +130,28 @@ export class TicketsService {
       ? 'PENDING_APPROVAL'
       : 'OPEN';
 
+    // Padrão outbox: o id é gerado aqui para montar o link do e-mail ANTES do insert e
+    // enfileirar a notificação na MESMA transação do chamado (createWithHistory).
+    const id = randomUUID();
+    let notification: { toEmail: string; subject: string; body: string } | undefined;
+    if (executorDepartment.notificationEmail) {
+      const requesterUser = await this.users.findById(requesterId);
+      const email = buildTicketEmail({
+        ticketId: id,
+        title,
+        requesterName: requesterUser?.name ?? requesterId,
+        requesterDepartmentName: department.name,
+        priority,
+        description: dto.description ?? null,
+        originLocation: null,
+        createdAt: new Date(),
+        appUrl: this.config.get<string>('APP_URL') ?? null,
+      });
+      notification = { toEmail: executorDepartment.notificationEmail, ...email };
+    }
+
     const created = await this.repo.createWithHistory({
+      id,
       title,
       description: dto.description ?? null,
       categoryId: dto.categoryId,
@@ -139,6 +163,7 @@ export class TicketsService {
       departmentId,
       executorDepartmentId,
       requesterId,
+      notification,
     });
     // Retorna já projetado (SLA derivado + projeção por papel), como update()/updateStatus(),
     // para o "Prazo" já vir preenchido na resposta da criação.

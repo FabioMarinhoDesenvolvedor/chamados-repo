@@ -115,12 +115,15 @@ export class TicketsRepository {
     departmentId: string;
     executorDepartmentId: string;
     requesterId: string;
+    id: string;
+    notification?: { toEmail: string; subject: string; body: string };
   }) {
     return this.prisma.$transaction(async (tx) => {
       // Prioridade/SLA sempre calculados na criação (regra aprovada), independente
       // do chamado nascer OPEN ou PENDING_APPROVAL (aprovação não represa o SLA).
       const ticket = await tx.ticket.create({
         data: {
+          id: input.id,
           title: input.title,
           description: input.description,
           category: { connect: { id: input.categoryId } },
@@ -147,6 +150,18 @@ export class TicketsRepository {
           changedBy: input.requesterId,
         },
       });
+      // Enqueue da notificação na MESMA transação (outbox): se o chamado commita, o e-mail
+      // está garantido na fila; se dá rollback, nada de e-mail órfão.
+      if (input.notification) {
+        await tx.notificationOutbox.create({
+          data: {
+            ticketId: ticket.id,
+            toEmail: input.notification.toEmail,
+            subject: input.notification.subject,
+            body: input.notification.body,
+          },
+        });
+      }
       return ticket;
     });
   }
