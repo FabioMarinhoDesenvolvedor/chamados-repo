@@ -58,7 +58,11 @@ completo (ENTENDER → ESPECIFICAR → PLANEJAR → IMPLEMENTAR) via `subagent-d
   3. `UPDATE departments SET requires_approval=false WHERE name='Presidência'`.
   4. `UPDATE tickets SET status='OPEN' WHERE status='PENDING_APPROVAL'` (defensivo).
   5. `db:generate` → `db:deploy` → build `shared → api → web` → restart (systemd, srv-alv01).
-- **Revisão final whole-branch (SDD)**: em andamento/a anexar — roda logo após esta task (Task 10).
+- **Revisão final whole-branch (SDD, opus, 863d0dc..e563d6c)**: veredito **With fixes** (correções
+  menores adiáveis) — **sem Critical/Important**. Risco central confirmado fechado: os 5 caminhos de
+  leitura projetada (`create`/`update`/`list`/`updateStatus`/`detail`) carregam `department.priorityWeight`,
+  então nenhum projeta prazo nulo por engano; captura de `first_response_at` sem sobrescrita; breach só
+  a staff sem bug Date-vs-number; aprovação 100% removida dos caminhos vivos.
 
 ## Pendências
 - Smoke local com banco no ar (roteiro da spec §8): abrir chamado → ver os dois prazos como
@@ -67,8 +71,16 @@ completo (ENTENDER → ESPECIFICAR → PLANEJAR → IMPLEMENTAR) via `subagent-d
   `PATCH /tickets/:id { complexity }` não é mais aceito; nenhum chamado nasce `PENDING_APPROVAL`.
   Limpar dados de teste depois.
 - `db:generate`/`db:migrate`/`nest build` (api) — bloqueados sem Postgres no ar nesta sessão.
-- Revisão final whole-branch (SDD) do fluxo completo — a rodar/anexar após esta task.
 - Deploy em produção — papel do Fabio, seguindo a ordem da spec §7 acima.
+- **Follow-ups menores da revisão final (não bloqueiam merge; limpeza futura):**
+  1. Guards mortos de `PENDING_APPROVAL` em `updateStatus`/`listWhere` (mensagem aponta rota removida).
+  2. `OPEN → RESOLVED` direto deixa o relógio de resposta como "em até Xh" em chamado resolvido
+     (cosmético; cor de estouro já suprimida em resolvidos). Opção: tratar `resolvedAt != null`
+     como "respondido" no detalhe.
+  3. `useUpdateTicket` sem chamador na UI — a spec preserva a correção de setor (`departmentId`)
+     pelo admin, mas ainda **não há controle de UI** para ela (só a capacidade da API). Decidir se
+     entra num próximo passo de frontend.
+  4. `close()` retorna ticket sem projeção de SLA (pré-existente, não é regressão).
 
 ## PRÓXIMO passo explícito
 1. Rodar o smoke com o banco no ar (roteiro acima) e a revisão final whole-branch.
