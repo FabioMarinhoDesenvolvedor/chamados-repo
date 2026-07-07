@@ -97,9 +97,16 @@ export interface Ticket {
   rating: number | null;
   closedAt: string | null;
   slaStartedAt: string | null;
-  // Derivados (calculados no backend; nulos enquanto em triagem):
-  slaHours: number | null;
-  slaDueAt: string | null;
+  // Primeira resposta (assumir OU ir para IN_PROGRESS). Nulo enquanto não respondido.
+  firstResponseAt: string | null;
+  // Dois relógios de SLA, ambos derivados (nulos enquanto sem complexidade/início):
+  responseSlaHours: number | null;
+  responseDueAt: string | null;
+  resolutionSlaHours: number | null;
+  resolutionDueAt: string | null;
+  // Estouro só é projetado para staff (undefined para o usuário comum).
+  responseBreached?: boolean;
+  resolutionBreached?: boolean;
 }
 
 export interface TicketAttachment {
@@ -168,7 +175,6 @@ export interface CreateTicketInput {
 }
 
 export interface UpdateTicketInput {
-  complexity?: Complexity;
   departmentId?: string;
 }
 
