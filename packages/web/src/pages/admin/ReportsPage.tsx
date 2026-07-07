@@ -28,7 +28,7 @@ function fmtDate(date: string | null): string {
 }
 
 // IDs (UUID) são longos: mostra os 8 primeiros como identificador, com o ID completo no title.
-const shortId = (id: string) => id.slice(0, 8);
+const shortId = (id: number) => `#${id}`;
 
 function ReportBody({ report }: { report: UserActivityReport }) {
   return (
@@ -66,7 +66,7 @@ function ReportBody({ report }: { report: UserActivityReport }) {
                   <td className="px-3 py-2">
                     <Link
                       to={`/tickets/${item.ticketId}`}
-                      title={item.ticketId}
+                      title={String(item.ticketId)}
                       className="font-mono text-grena hover:underline"
                     >
                       {shortId(item.ticketId)}
@@ -74,7 +74,7 @@ function ReportBody({ report }: { report: UserActivityReport }) {
                     <div className="text-xs text-gray-400">{item.ticketTitle}</div>
                   </td>
                   <td className="px-3 py-2">
-                    <span className="font-mono text-gray-700" title={item.actorId}>
+                    <span className="font-mono text-gray-700" title={String(item.actorId)}>
                       {shortId(item.actorId)}
                     </span>
                     <div className="text-xs text-gray-400">{item.actorName}</div>
@@ -143,8 +143,8 @@ export function ReportsPage() {
 
   function onGenerate() {
     setApplied({
-      userId: userId || undefined,
-      categoryId: categoryId || undefined,
+      userId: userId ? Number(userId) : undefined,
+      categoryId: categoryId ? Number(categoryId) : undefined,
       from: from || undefined,
       to: to || undefined,
     });
@@ -166,7 +166,7 @@ export function ReportsPage() {
             <Select id="user" value={userId} onChange={(e) => setUserId(e.target.value)}>
               <option value="">Todos os usuários</option>
               {users?.map((u) => (
-                <option key={u.id} value={u.id}>
+                <option key={u.id} value={String(u.id)}>
                   {u.name} ({u.email})
                 </option>
               ))}
@@ -177,7 +177,7 @@ export function ReportsPage() {
             <Select id="category" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
               <option value="">Todas as categorias</option>
               {categories?.map((c) => (
-                <option key={c.id} value={c.id}>
+                <option key={c.id} value={String(c.id)}>
                   {c.name}
                 </option>
               ))}

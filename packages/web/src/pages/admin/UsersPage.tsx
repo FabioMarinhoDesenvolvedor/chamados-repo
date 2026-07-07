@@ -16,7 +16,7 @@ interface FormState {
   email: string;
   password: string;
   role: Role;
-  departmentId: string;
+  departmentId: number | '';
 }
 
 const EMPTY: FormState = { name: '', email: '', password: '', role: 'USER', departmentId: '' };
@@ -30,7 +30,7 @@ export function UsersPage() {
   const deleteUser = useDeleteUser();
   const [form, setForm] = useState<FormState>(EMPTY);
   const [error, setError] = useState('');
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [edit, setEdit] = useState<FormState>(EMPTY);
   const [editError, setEditError] = useState('');
   const [deleteError, setDeleteError] = useState('');
@@ -153,11 +153,11 @@ export function UsersPage() {
             <Select
               id="department"
               value={form.departmentId}
-              onChange={(e) => update('departmentId', e.target.value)}
+              onChange={(e) => update('departmentId', e.target.value ? Number(e.target.value) : '')}
             >
               <option value="">Sem departamento</option>
               {departments?.map((d) => (
-                <option key={d.id} value={d.id}>
+                <option key={d.id} value={String(d.id)}>
                   {d.name}
                 </option>
               ))}
@@ -264,11 +264,11 @@ export function UsersPage() {
               <Select
                 id="edit-department"
                 value={edit.departmentId}
-                onChange={(e) => updateEdit('departmentId', e.target.value)}
+                onChange={(e) => updateEdit('departmentId', e.target.value ? Number(e.target.value) : '')}
               >
                 <option value="">Sem departamento</option>
                 {departments?.map((d) => (
-                  <option key={d.id} value={d.id}>
+                  <option key={d.id} value={String(d.id)}>
                     {d.name}
                   </option>
                 ))}

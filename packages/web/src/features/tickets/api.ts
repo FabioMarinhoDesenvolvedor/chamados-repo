@@ -34,7 +34,7 @@ export function useTicketStats(enabled: boolean) {
   });
 }
 
-export function useTicket(id: string) {
+export function useTicket(id: number) {
   const qc = useQueryClient();
   return useQuery({
     queryKey: ['ticket', id],
@@ -45,7 +45,7 @@ export function useTicket(id: string) {
       qc.invalidateQueries({ queryKey: ['tickets'] });
       return data;
     },
-    enabled: Boolean(id),
+    enabled: Number.isFinite(id),
   });
 }
 
@@ -78,20 +78,20 @@ export function useUploadAttachments() {
       files,
       commentId,
     }: {
-      ticketId: string;
+      ticketId: number;
       files: File[];
-      commentId?: string;
+      commentId?: number;
     }) => {
       const form = new FormData();
       files.forEach((f) => form.append('files', f));
-      if (commentId) form.append('commentId', commentId);
+      if (commentId != null) form.append('commentId', String(commentId));
       return (await api.post<TicketAttachment[]>(`/tickets/${ticketId}/attachments`, form)).data;
     },
     onSuccess: (_data, vars) => qc.invalidateQueries({ queryKey: ['ticket', vars.ticketId] }),
   });
 }
 
-export function useUpdateTicket(id: string) {
+export function useUpdateTicket(id: number) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: UpdateTicketInput) =>
@@ -107,7 +107,7 @@ export function useUpdateTicket(id: string) {
   });
 }
 
-export function useUpdateStatus(id: string) {
+export function useUpdateStatus(id: number) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: UpdateTicketStatusInput) =>
@@ -124,7 +124,7 @@ export function useUpdateStatus(id: string) {
   });
 }
 
-export function useAssignTicket(id: string) {
+export function useAssignTicket(id: number) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: AssignTicketInput) =>
@@ -145,7 +145,7 @@ export function useAssignTicket(id: string) {
   });
 }
 
-export function useAddComment(id: string) {
+export function useAddComment(id: number) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: AddCommentInput) =>
@@ -158,7 +158,7 @@ export function useAddComment(id: string) {
   });
 }
 
-export function useCloseTicket(id: string) {
+export function useCloseTicket(id: number) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: CloseTicketInput) =>

@@ -23,7 +23,7 @@ export function useCreateUser() {
 export function useUpdateUser() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, input }: { id: string; input: UpdateUserInput }) =>
+    mutationFn: async ({ id, input }: { id: number; input: UpdateUserInput }) =>
       (await api.patch<UserPublic>(`/users/${id}`, input)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
     meta: { successMessage: 'Usuário atualizado' },
@@ -33,7 +33,7 @@ export function useUpdateUser() {
 export function useDeleteUser() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => (await api.delete(`/users/${id}`)).data,
+    mutationFn: async (id: number) => (await api.delete(`/users/${id}`)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
     meta: { successMessage: 'Usuário removido' },
   });

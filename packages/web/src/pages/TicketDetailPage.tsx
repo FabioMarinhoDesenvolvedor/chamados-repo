@@ -39,17 +39,18 @@ type FeedItem =
 
 export function TicketDetailPage() {
   const { id = '' } = useParams();
+  const ticketId = Number(id);
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
   // Staff (ADMIN/OPERATOR): atende o chamado (vê prioridade, muda status, assume, comenta).
   const isStaff = user ? isStaffRole(user.role) : false;
-  const { data: ticket, isLoading } = useTicket(id);
-  const updateStatus = useUpdateStatus(id);
-  const assignTicket = useAssignTicket(id);
-  const addComment = useAddComment(id);
+  const { data: ticket, isLoading } = useTicket(ticketId);
+  const updateStatus = useUpdateStatus(ticketId);
+  const assignTicket = useAssignTicket(ticketId);
+  const addComment = useAddComment(ticketId);
   const uploadAttachments = useUploadAttachments();
   const { data: allUsers } = useUsers(isAdmin);
-  const closeTicket = useCloseTicket(id);
+  const closeTicket = useCloseTicket(ticketId);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [commentFiles, setCommentFiles] = useState<File[]>([]);
@@ -66,8 +67,8 @@ export function TicketDetailPage() {
   // Possíveis responsáveis: equipe de atendimento (ADMIN ou OPERATOR).
   const staffUsers = allUsers?.filter((u) => isStaffRole(u.role)) ?? [];
 
-  // Status manualmente selecionáveis (TRIAGE/OPEN são automáticos da triagem). Mantém os
-  // dois estágios do encerramento: RESOLVED (aguarda confirmação) e CLOSED (admin encerra).
+  // Status manualmente selecionáveis. OPEN nasce automático; mantém os dois estágios do
+  // encerramento: RESOLVED (aguarda confirmação) e CLOSED (admin encerra).
   const STAFF_STATUS_OPTIONS: TicketStatus[] = isAdmin
     ? ['IN_PROGRESS', 'RESOLVED', 'CLOSED']
     : ['IN_PROGRESS', 'RESOLVED'];
@@ -96,7 +97,7 @@ export function TicketDetailPage() {
     if (!comment.trim()) return;
     const created = await addComment.mutateAsync({ body: comment });
     if (commentFiles.length > 0 && created?.id) {
-      await uploadAttachments.mutateAsync({ ticketId: id, files: commentFiles, commentId: created.id });
+      await uploadAttachments.mutateAsync({ ticketId, files: commentFiles, commentId: created.id });
     }
     setComment('');
     setCommentFiles([]);
@@ -146,7 +147,7 @@ export function TicketDetailPage() {
             </p>
           )
         ) : (
-          <p className="mt-2 text-sm text-gray-500">Em análise — prazo definido após a triagem.</p>
+          <p className="mt-2 text-sm text-gray-500">Prazo indisponível para este chamado.</p>
         )}
       </div>
 
@@ -212,13 +213,15 @@ export function TicketDetailPage() {
               {isAdmin ? (
                 <Select
                   value={ticket.assignedTo ?? ''}
-                  onChange={(e) => e.target.value && assignTicket.mutate({ assignedTo: e.target.value })}
+                  onChange={(e) =>
+                    e.target.value && assignTicket.mutate({ assignedTo: Number(e.target.value) })
+                  }
                 >
                   <option value="" disabled>
                     Selecione um responsável...
                   </option>
                   {staffUsers.map((u) => (
-                    <option key={u.id} value={u.id}>
+                    <option key={u.id} value={String(u.id)}>
                       {u.name}
                     </option>
                   ))}

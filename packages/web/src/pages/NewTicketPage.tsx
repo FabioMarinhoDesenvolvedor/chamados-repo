@@ -59,8 +59,8 @@ export function NewTicketPage() {
   // Detalhe é opcional: o usuário pode pular com "Não sei / Outro".
   const [detailSkipped, setDetailSkipped] = useState(false);
   const [description, setDescription] = useState('');
-  const [departmentId, setDepartmentId] = useState('');
-  const [requesterId, setRequesterId] = useState('');
+  const [departmentId, setDepartmentId] = useState<number | ''>('');
+  const [requesterId, setRequesterId] = useState<number | ''>('');
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState('');
 
@@ -77,7 +77,7 @@ export function NewTicketPage() {
   if (blockOperator) return <Navigate to="/" replace />;
 
   // ADMIN: ao escolher o solicitante, sugere o setor dele (continua editável).
-  function onSelectRequester(id: string) {
+  function onSelectRequester(id: number | '') {
     setRequesterId(id);
     const requester = users?.find((u) => u.id === id);
     if (requester?.departmentId) setDepartmentId(requester.departmentId);
@@ -102,6 +102,10 @@ export function NewTicketPage() {
     setError('');
     // USER sempre usa o próprio setor (o backend também força isso).
     const dept = isAdmin ? departmentId : user?.departmentId ?? '';
+    if (!dept) {
+      setError('Selecione um setor para abrir o chamado.');
+      return;
+    }
     try {
       const ticket = await createTicket.mutateAsync({
         categoryId: category.id,
@@ -259,11 +263,11 @@ export function NewTicketPage() {
                   <Select
                     id="requester"
                     value={requesterId}
-                    onChange={(e) => onSelectRequester(e.target.value)}
+                    onChange={(e) => onSelectRequester(e.target.value ? Number(e.target.value) : '')}
                   >
                     <option value="">Eu mesmo (admin)</option>
                     {users?.map((u) => (
-                      <option key={u.id} value={u.id}>
+                      <option key={u.id} value={String(u.id)}>
                         {u.name} ({u.email})
                       </option>
                     ))}
@@ -274,14 +278,14 @@ export function NewTicketPage() {
                   <Select
                     id="department"
                     value={departmentId}
-                    onChange={(e) => setDepartmentId(e.target.value)}
+                    onChange={(e) => setDepartmentId(e.target.value ? Number(e.target.value) : '')}
                     required
                   >
                     <option value="" disabled>
                       Selecione...
                     </option>
                     {departments?.map((d) => (
-                      <option key={d.id} value={d.id}>
+                      <option key={d.id} value={String(d.id)}>
                         {d.name}
                       </option>
                     ))}

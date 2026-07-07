@@ -21,7 +21,7 @@ import { STATUS_LABEL } from '@/lib/labels';
 
 const PAGE_SIZE = 20;
 // Status que dá para definir rápido pelo dashboard (resolver coisas simples sem abrir o chamado).
-const QUICK_STATUSES: TicketStatus[] = ['TRIAGE', 'IN_PROGRESS', 'RESOLVED'];
+const QUICK_STATUSES: TicketStatus[] = ['OPEN', 'IN_PROGRESS', 'RESOLVED'];
 
 // Ações de atendimento direto na lista (só staff): mudar status e definir responsável.
 function TicketActions({
@@ -33,7 +33,7 @@ function TicketActions({
   ticket: Ticket;
   isAdmin: boolean;
   staffUsers: UserPublic[];
-  currentUserId?: string;
+  currentUserId?: number;
 }) {
   const updateStatus = useUpdateStatus(ticket.id);
   const assignTicket = useAssignTicket(ticket.id);
@@ -64,7 +64,9 @@ function TicketActions({
           className="min-h-0 py-1 text-xs"
           value={ticket.assignedTo ?? ''}
           disabled={busy}
-          onChange={(e) => e.target.value && assignTicket.mutate({ assignedTo: e.target.value })}
+          onChange={(e) =>
+            e.target.value && assignTicket.mutate({ assignedTo: Number(e.target.value) })
+          }
         >
           <option value="" disabled>
             Responsável...
@@ -106,7 +108,7 @@ export function DashboardPage() {
 
   // 'ACTIVE' (padrão) = só não-encerrados; '' = todos; ou um status específico.
   const [status, setStatus] = useState<TicketStatus | '' | 'ACTIVE'>('ACTIVE');
-  const [categoryId, setCategoryId] = useState('');
+  const [categoryId, setCategoryId] = useState<number | ''>('');
   const [page, setPage] = useState(1);
 
   const filters: TicketFilters = {
@@ -129,7 +131,7 @@ export function DashboardPage() {
     setStatus(v);
     setPage(1);
   };
-  const changeCategory = (v: string) => {
+  const changeCategory = (v: number | '') => {
     setCategoryId(v);
     setPage(1);
   };
@@ -153,7 +155,7 @@ export function DashboardPage() {
 
       {isStaff && (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-          <KpiCard label="Em triagem" value={stats?.triagem ?? 0} />
+          <KpiCard label="Legado em triagem" value={stats?.triagem ?? 0} />
           <KpiCard label="Abertos" value={stats?.abertos ?? 0} />
           <KpiCard label="Resolvidos" value={stats?.resolvidos ?? 0} />
         </div>
@@ -179,11 +181,11 @@ export function DashboardPage() {
           <Select
             aria-label="Filtrar por categoria"
             value={categoryId}
-            onChange={(e) => changeCategory(e.target.value)}
+            onChange={(e) => changeCategory(e.target.value ? Number(e.target.value) : '')}
           >
             <option value="">Todas as categorias</option>
             {categories?.map((c) => (
-              <option key={c.id} value={c.id}>
+              <option key={c.id} value={String(c.id)}>
                 {c.name}
               </option>
             ))}
@@ -226,7 +228,7 @@ export function DashboardPage() {
                         {(() => {
                           const h = t.firstResponseAt ? t.resolutionSlaHours : t.responseSlaHours;
                           const rot = t.firstResponseAt ? 'Conclusão' : 'Resposta';
-                          return h != null ? `${rot}: até ${h}h` : 'Em triagem';
+                          return h != null ? `${rot}: até ${h}h` : 'Prazo indisponível';
                         })()}
                       </span>
                     </td>
@@ -267,7 +269,7 @@ export function DashboardPage() {
                       {(() => {
                         const h = t.firstResponseAt ? t.resolutionSlaHours : t.responseSlaHours;
                         const rot = t.firstResponseAt ? 'Conclusão' : 'Resposta';
-                        return h != null ? `${rot}: até ${h}h` : 'Em triagem';
+                        return h != null ? `${rot}: até ${h}h` : 'Prazo indisponível';
                       })()}
                     </span>
                     <StatusBadge status={t.status} />

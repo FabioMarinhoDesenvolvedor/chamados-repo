@@ -22,7 +22,7 @@ export function useCreateDepartment() {
 export function useDeleteDepartment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => (await api.delete(`/departments/${id}`)).data,
+    mutationFn: async (id: number) => (await api.delete(`/departments/${id}`)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['departments'] }),
     meta: { successMessage: 'Departamento removido' },
   });
