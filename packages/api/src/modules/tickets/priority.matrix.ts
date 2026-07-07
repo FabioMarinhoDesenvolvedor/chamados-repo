@@ -2,7 +2,7 @@ import { Complexity, Priority } from '@chamados/shared';
 
 // Faixas de priority_weight do departamento (ver docs/memory/architecture/business-rules.md):
 // Baixo = 1-2 | Médio = 3 | Alto = 4-5
-type WeightBand = 'BAIXO' | 'MEDIO' | 'ALTO';
+export type WeightBand = 'BAIXO' | 'MEDIO' | 'ALTO';
 
 export function weightBand(priorityWeight: number): WeightBand {
   if (priorityWeight <= 2) return 'BAIXO';
