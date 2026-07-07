@@ -43,14 +43,14 @@ enum NotificationStatus {
 }
 
 model User {
-  id           String   @id @default(uuid())
+  id           Int      @id @default(autoincrement())
   name         String
   email        String   @unique
   passwordHash String   @map("password_hash")
   role         Role     @default(USER)
   mustChangePassword Boolean @default(true) @map("must_change_password")
   isKiosk      Boolean  @default(false) @map("is_kiosk")
-  departmentId String?  @map("department_id")
+  departmentId Int?     @map("department_id")
   department   Department? @relation(fields: [departmentId], references: [id])
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
@@ -66,7 +66,7 @@ model User {
 }
 
 model Department {
-  id                String   @id @default(uuid())
+  id                Int      @id @default(autoincrement())
   name              String   @unique
   priorityWeight    Int      @map("priority_weight")
   isRequesterDept   Boolean  @default(true)  @map("is_requester_dept")
@@ -84,29 +84,29 @@ model Department {
 }
 
 model Ticket {
-  id           String       @id @default(uuid())
+  id           Int          @id @default(autoincrement())
   title        String
   description  String?
   // Categorização guiada (nullable: chamados antigos seguem só com texto livre).
-  categoryId    String?            @map("category_id")
+  categoryId    Int?               @map("category_id")
   category      TicketCategory?    @relation(fields: [categoryId], references: [id])
-  subcategoryId String?            @map("subcategory_id")
+  subcategoryId Int?               @map("subcategory_id")
   subcategory   TicketSubcategory? @relation(fields: [subcategoryId], references: [id])
-  detailOptionId String?            @map("detail_option_id")
+  detailOptionId Int?              @map("detail_option_id")
   detailOption   TicketDetailOption? @relation(fields: [detailOptionId], references: [id])
   complexity   Complexity?
   priority     Priority?
-  status       TicketStatus @default(TRIAGE)
-  departmentId String       @map("department_id") // setor do SOLICITANTE (não muda de sentido)
+  status       TicketStatus @default(OPEN)
+  departmentId Int          @map("department_id") // setor do SOLICITANTE (não muda de sentido)
   department   Department   @relation(fields: [departmentId], references: [id])
   // Setor EXECUTOR (destino), resolvido de category.departmentId na criação — denormalizado.
-  executorDepartmentId String?     @map("executor_department_id")
+  executorDepartmentId Int?        @map("executor_department_id")
   executorDepartment   Department? @relation("executorDepartment", fields: [executorDepartmentId], references: [id], onDelete: Restrict)
   // Capturado só quando requester.isKiosk = true (totem) — texto livre de local/sala.
   originLocation String?      @map("origin_location")
-  requesterId  String       @map("requester_id")
+  requesterId  Int          @map("requester_id")
   requester    User         @relation("requester", fields: [requesterId], references: [id])
-  assignedTo   String?      @map("assigned_to")
+  assignedTo   Int?         @map("assigned_to")
   assignee     User?        @relation("assignee", fields: [assignedTo], references: [id])
   createdAt    DateTime     @default(now()) @map("created_at")
   updatedAt    DateTime     @updatedAt @map("updated_at")
@@ -117,7 +117,7 @@ model Ticket {
   rating       Int?
 
   lastActivityAt DateTime @default(now()) @map("last_activity_at")
-  lastActivityBy String?  @map("last_activity_by")
+  lastActivityBy Int?     @map("last_activity_by")
 
   comments    TicketComment[]
   history     TicketStatusHistory[]
@@ -136,14 +136,14 @@ model Ticket {
 }
 
 model TicketCategory {
-  id           String      @id @default(uuid())
+  id           Int         @id @default(autoincrement())
   slug         String      @unique
   name         String
   icon         String // nome do ícone lucide-react
   sortOrder    Int         @map("sort_order")
   // Roteamento: setor executor de destino. Nullable pra não quebrar categorias
   // antigas; só pode referenciar Department.isExecutorDept = true (garantido no seed).
-  departmentId String?     @map("department_id")
+  departmentId Int?        @map("department_id")
   department   Department? @relation(fields: [departmentId], references: [id], onDelete: Restrict)
   createdAt    DateTime    @default(now()) @map("created_at")
 
@@ -155,8 +155,8 @@ model TicketCategory {
 }
 
 model TicketSubcategory {
-  id         String         @id @default(uuid())
-  categoryId String         @map("category_id")
+  id         Int            @id @default(autoincrement())
+  categoryId Int            @map("category_id")
   category   TicketCategory @relation(fields: [categoryId], references: [id])
   slug       String
   name       String
@@ -174,8 +174,8 @@ model TicketSubcategory {
 }
 
 model TicketDetailOption {
-  id             String            @id @default(uuid())
-  subcategoryId  String            @map("subcategory_id")
+  id             Int               @id @default(autoincrement())
+  subcategoryId  Int               @map("subcategory_id")
   subcategory    TicketSubcategory @relation(fields: [subcategoryId], references: [id])
   slug           String
   name           String
@@ -192,10 +192,10 @@ model TicketDetailOption {
 }
 
 model TicketComment {
-  id        String   @id @default(uuid())
-  ticketId  String   @map("ticket_id")
+  id        Int      @id @default(autoincrement())
+  ticketId  Int      @map("ticket_id")
   ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  authorId  String   @map("author_id")
+  authorId  Int      @map("author_id")
   author    User     @relation(fields: [authorId], references: [id])
   body      String
   createdAt DateTime @default(now()) @map("created_at")
@@ -207,10 +207,10 @@ model TicketComment {
 }
 
 model TicketAttachment {
-  id           String         @id @default(uuid())
-  ticketId     String         @map("ticket_id")
+  id           Int            @id @default(autoincrement())
+  ticketId     Int            @map("ticket_id")
   ticket       Ticket         @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  commentId    String?        @map("comment_id")
+  commentId    Int?           @map("comment_id")
   comment      TicketComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
   filename     String
   originalName String         @map("original_name")
@@ -224,12 +224,12 @@ model TicketAttachment {
 }
 
 model TicketStatusHistory {
-  id            String       @id @default(uuid())
-  ticketId      String       @map("ticket_id")
+  id            Int          @id @default(autoincrement())
+  ticketId      Int          @map("ticket_id")
   ticket        Ticket       @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   fromStatus    TicketStatus? @map("from_status")
   toStatus      TicketStatus @map("to_status")
-  changedBy     String       @map("changed_by")
+  changedBy     Int          @map("changed_by")
   changedByUser User         @relation(fields: [changedBy], references: [id])
   createdAt     DateTime     @default(now()) @map("created_at")
 
@@ -238,10 +238,10 @@ model TicketStatusHistory {
 }
 
 model TicketReadState {
-  id         String   @id @default(uuid())
-  userId     String   @map("user_id")
+  id         Int      @id @default(autoincrement())
+  userId     Int      @map("user_id")
   user       User     @relation(fields: [userId], references: [id])
-  ticketId   String   @map("ticket_id")
+  ticketId   Int      @map("ticket_id")
   ticket     Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   lastSeenAt DateTime @default(now()) @map("last_seen_at")
 
@@ -251,8 +251,8 @@ model TicketReadState {
 }
 
 model NotificationOutbox {
-  id        String             @id @default(uuid())
-  ticketId  String             @map("ticket_id")
+  id        Int                @id @default(autoincrement())
+  ticketId  Int                @map("ticket_id")
   ticket    Ticket             @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   toEmail   String             @map("to_email")
   subject   String
