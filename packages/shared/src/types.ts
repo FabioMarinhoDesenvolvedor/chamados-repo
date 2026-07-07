@@ -3,11 +3,11 @@ import { Complexity, Priority, Role, TicketStatus } from './enums';
 // Datas trafegam como string ISO no JSON da API.
 
 export interface UserPublic {
-  id: string;
+  id: number;
   name: string;
   email: string;
   role: Role;
-  departmentId: string | null;
+  departmentId: number | null;
   isKiosk: boolean;
   mustChangePassword: boolean;
   createdAt: string;
@@ -19,14 +19,14 @@ export interface ChangePasswordInput {
   newPassword: string;
 }
 
-// Primeiro acesso: usuário recém-criado define a própria senha pelo e-mail.
+// Primeiro acesso: usuario recem-criado define a propria senha pelo e-mail.
 export interface FirstAccessInput {
   email: string;
   newPassword: string;
 }
 
 export interface Department {
-  id: string;
+  id: number;
   name: string;
   priorityWeight: number;
   isRequesterDept: boolean;
@@ -36,18 +36,18 @@ export interface Department {
   createdAt: string;
 }
 
-// ---- Categorização (blocos) ----
+// ---- Categorizacao (blocos) ----
 export interface TicketCategory {
-  id: string;
+  id: number;
   slug: string;
   name: string;
-  icon: string; // nome do ícone lucide-react
+  icon: string; // nome do icone lucide-react
   sortOrder: number;
 }
 
 export interface TicketDetailOption {
-  id: string;
-  subcategoryId: string;
+  id: number;
+  subcategoryId: number;
   slug: string;
   name: string;
   icon: string;
@@ -55,13 +55,13 @@ export interface TicketDetailOption {
 }
 
 export interface TicketSubcategory {
-  id: string;
-  categoryId: string;
+  id: number;
+  categoryId: number;
   slug: string;
   name: string;
   icon: string;
   sortOrder: number;
-  // 3º nível opcional (data-driven). Vazio = subcategoria sem detalhe.
+  // 3o nivel opcional (data-driven). Vazio = subcategoria sem detalhe.
   details?: TicketDetailOption[];
 }
 
@@ -70,26 +70,26 @@ export interface CategoryWithSubcategories extends TicketCategory {
 }
 
 export interface Ticket {
-  id: string;
+  id: number;
   title: string;
   description: string | null;
-  categoryId: string | null;
-  subcategoryId: string | null;
-  // Nomes/ícones da categoria embutidos para exibição (sem N+1 — vêm de um include).
+  categoryId: number | null;
+  subcategoryId: number | null;
+  // Nomes/icones da categoria embutidos para exibicao (sem N+1 - vem de um include).
   category?: TicketCategory | null;
   subcategory?: TicketSubcategory | null;
-  detailOptionId: string | null;
+  detailOptionId: number | null;
   detailOption?: TicketDetailOption | null;
   complexity: Complexity | null;
   priority: Priority | null;
   status: TicketStatus;
-  departmentId: string; // setor do SOLICITANTE (não muda de sentido)
-  executorDepartmentId: string | null; // setor EXECUTOR (destino), resolvido pela categoria
-  originLocation: string | null; // capturado só via totem (Plano 4)
-  requesterId: string;
-  assignedTo: string | null;
+  departmentId: number; // setor do SOLICITANTE (nao muda de sentido)
+  executorDepartmentId: number | null; // setor EXECUTOR (destino), resolvido pela categoria
+  originLocation: string | null; // capturado so via totem (Plano 4)
+  requesterId: number;
+  assignedTo: number | null;
   lastActivityAt: string;
-  lastActivityBy: string | null;
+  lastActivityBy: number | null;
   hasUnread?: boolean;
   createdAt: string;
   updatedAt: string;
@@ -97,22 +97,22 @@ export interface Ticket {
   rating: number | null;
   closedAt: string | null;
   slaStartedAt: string | null;
-  // Primeira resposta (assumir OU ir para IN_PROGRESS). Nulo enquanto não respondido.
+  // Primeira resposta (assumir OU ir para IN_PROGRESS). Nulo enquanto nao respondido.
   firstResponseAt: string | null;
-  // Dois relógios de SLA, ambos derivados (nulos enquanto sem complexidade/início):
+  // Dois relogios de SLA, ambos derivados (nulos enquanto sem complexidade/inicio):
   responseSlaHours: number | null;
   responseDueAt: string | null;
   resolutionSlaHours: number | null;
   resolutionDueAt: string | null;
-  // Estouro só é projetado para staff (undefined para o usuário comum).
+  // Estouro so e projetado para staff (undefined para o usuario comum).
   responseBreached?: boolean;
   resolutionBreached?: boolean;
 }
 
 export interface TicketAttachment {
-  id: string;
-  ticketId: string;
-  commentId: string | null;
+  id: number;
+  ticketId: number;
+  commentId: number | null;
   originalName: string;
   mime: string;
   size: number;
@@ -121,9 +121,9 @@ export interface TicketAttachment {
 }
 
 export interface TicketComment {
-  id: string;
-  ticketId: string;
-  authorId: string;
+  id: number;
+  ticketId: number;
+  authorId: number;
   body: string;
   createdAt: string;
   author?: UserPublic;
@@ -131,11 +131,11 @@ export interface TicketComment {
 }
 
 export interface TicketStatusHistory {
-  id: string;
-  ticketId: string;
+  id: number;
+  ticketId: number;
   fromStatus: TicketStatus | null;
   toStatus: TicketStatus;
-  changedBy: string;
+  changedBy: number;
   createdAt: string;
 }
 
@@ -162,27 +162,27 @@ export interface AuthResponse {
 
 // ---- Inputs ----
 export interface CreateTicketInput {
-  // Categorização guiada (substitui o título livre como entrada principal).
-  categoryId: string;
-  subcategoryId: string;
-  // 3º nível — obrigatório quando a subcategoria escolhida tiver detalhes.
-  detailOptionId?: string;
-  // Descrição complementar opcional (detalhes do problema dentro da subcategoria).
+  // Categorizacao guiada (substitui o titulo livre como entrada principal).
+  categoryId: number;
+  subcategoryId: number;
+  // 3o nivel - obrigatorio quando a subcategoria escolhida tiver detalhes.
+  detailOptionId?: number;
+  // Descricao complementar opcional (detalhes do problema dentro da subcategoria).
   description?: string;
-  departmentId: string;
-  // Apenas ADMIN: abre o chamado em nome de outro usuário (solicitante).
-  requesterId?: string;
+  departmentId: number;
+  // Apenas ADMIN: abre o chamado em nome de outro usuario (solicitante).
+  requesterId?: number;
 }
 
 export interface UpdateTicketInput {
-  departmentId?: string;
+  departmentId?: number;
 }
 
 export interface UpdateUserInput {
   name?: string;
   email?: string;
   role?: Role;
-  departmentId?: string | null;
+  departmentId?: number | null;
   password?: string;
 }
 
@@ -195,7 +195,7 @@ export interface UpdateTicketStatusInput {
 }
 
 export interface AssignTicketInput {
-  assignedTo: string;
+  assignedTo: number;
 }
 
 export interface AddCommentInput {
@@ -203,7 +203,7 @@ export interface AddCommentInput {
 }
 
 export interface CloseTicketInput {
-  // Avaliação opcional do solicitante (1..5 estrelas).
+  // Avaliacao opcional do solicitante (1..5 estrelas).
   rating?: number;
 }
 
@@ -212,7 +212,7 @@ export interface CreateUserInput {
   email: string;
   password: string;
   role: Role;
-  departmentId?: string | null;
+  departmentId?: number | null;
 }
 
 export interface CreateDepartmentInput {
@@ -227,16 +227,16 @@ export interface CreateDepartmentInput {
 export interface TicketFilters {
   status?: TicketStatus;
   priority?: Priority;
-  categoryId?: string;
-  subcategoryId?: string;
-  // 'active' = só não-encerrados (TRIAGE/OPEN/IN_PROGRESS); ignorado se `status` vier.
+  categoryId?: number;
+  subcategoryId?: number;
+  // 'active' = so nao-encerrados (TRIAGE/OPEN/IN_PROGRESS); ignorado se `status` vier.
   scope?: 'active' | 'all';
-  // Paginação real (1-based). Default no backend: page=1, pageSize=20.
+  // Paginacao real (1-based). Default no backend: page=1, pageSize=20.
   page?: number;
   pageSize?: number;
 }
 
-// Página genérica de resultados (listagem nunca carrega tudo de uma vez).
+// Pagina generica de resultados (listagem nunca carrega tudo de uma vez).
 export interface Paginated<T> {
   items: T[];
   total: number;
@@ -251,7 +251,7 @@ export interface TicketStats {
   resolvidos: number;
 }
 
-// ---- Relatórios (admin) ----
+// ---- Relatorios (admin) ----
 export type ActivityType = 'TICKET_OPENED' | 'STATUS_CHANGED' | 'COMMENTED';
 
 export interface ActivityAttachment {
@@ -262,11 +262,11 @@ export interface ActivityAttachment {
 export interface ActivityLogItem {
   at: string;
   type: ActivityType;
-  actorId: string;
+  actorId: number;
   actorName: string;
-  ticketId: string;
+  ticketId: number;
   ticketTitle: string;
-  // Estado atual do chamado (para a tabela de relatório identificar por ID + status/prioridade).
+  // Estado atual do chamado (para a tabela de relatorio identificar por ID + status/prioridade).
   ticketStatus: TicketStatus;
   ticketPriority: Priority | null;
   ticketCategory: string | null;
@@ -278,18 +278,18 @@ export interface ActivityLogItem {
 }
 
 export interface UserActivityReport {
-  user: { id: string; name: string; email: string } | null; // null = todos os usuários
+  user: { id: number; name: string; email: string } | null; // null = todos os usuarios
   from: string | null;
   to: string | null;
   items: ActivityLogItem[];
 }
 
 export interface ReportQuery {
-  userId?: string;
+  userId?: number;
   from?: string;
   to?: string;
-  categoryId?: string;
-  subcategoryId?: string;
+  categoryId?: number;
+  subcategoryId?: number;
 }
 
 // ---- Backup (admin) ----
