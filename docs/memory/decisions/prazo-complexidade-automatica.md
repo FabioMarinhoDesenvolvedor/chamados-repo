@@ -1,5 +1,11 @@
 # Prazo/complexidade automáticos na abertura (Item 2)
 
+PARCIALMENTE SUPERADA por [[sla-dois-tempos-automatico]] (2026-07-07): o SLA único (24h/3h/1h
+por prioridade) vira dois relógios (resposta + conclusão) via matriz `complexidade × peso`, e o
+**override de complexidade do admin** (`PATCH /tickets/:id { complexity? }`) foi removido. A
+complexidade via categorização (`detalhe.base_complexity` › `subcategoria.base_complexity` ›
+MÉDIA) e o restante desta decisão continuam valendo.
+
 Data: 2026-07-01
 Supera: [[triagem-complexidade]]
 

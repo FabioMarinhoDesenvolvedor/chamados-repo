@@ -1,5 +1,10 @@
 # Aprovação de chamados (setores sensíveis)
 
+← SUPERADA por [[sla-dois-tempos-automatico]] (2026-07-07): `requiresApproval` da Presidência
+vira `false`, nenhum chamado novo nasce `PENDING_APPROVAL`, e o endpoint `/approve` foi removido.
+O valor de enum `PENDING_APPROVAL` fica dormente (não removido do Postgres). Mantida aqui como
+histórico da decisão original.
+
 Data: 2026-07-02
 Estende: [[prazo-complexidade-automatica]] (SLA continua começando na criação, sem exceção).
 

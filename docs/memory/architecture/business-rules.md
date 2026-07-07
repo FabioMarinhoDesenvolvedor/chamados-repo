@@ -47,9 +47,14 @@
   os chamados antigos foram migrados p/ OPEN priorizado — ver handoff 2026-07-01-prazo-automatico).
 - A complexidade-base é **curada por subcategoria/detalhe** (seed em migration) e pode ser
   refinada; enquanto não curada, cai no default MÉDIA.
-- **Override do admin (opcional)**: `PATCH /tickets/:id` com `{ complexity?, departmentId? }`
-  ainda recalcula a prioridade — deixou de ser obrigatório para o prazo existir.
-- Ver decisão: decisions/prazo-complexidade-automatica (supera decisions/triagem-complexidade).
+- **Sem override de complexidade do admin** (removido em 2026-07-07): `PATCH /tickets/:id` não
+  aceita mais `complexity`. A complexidade é 100% da categorização. O admin mantém só a correção
+  de `departmentId`, que recalcula a prioridade e os dois prazos de SLA automaticamente.
+- A **prioridade de 4 níveis** (badge colorido, tabela abaixo) segue existindo para exibição/filtro
+  do staff, mas **não governa mais os prazos de SLA** (ver seção SLA) — só a matriz
+  `complexidade × peso` governa os prazos, direto.
+- Ver decisão: decisions/prazo-complexidade-automatica (supera decisions/triagem-complexidade;
+  parcialmente superada por decisions/sla-dois-tempos-automatico no que toca SLA único/override).
 
 ## Cálculo de Prioridade (matriz fixa)
 Centralizado em `PriorityService` (DRY/SOLID). Nunca calcular no banco.
@@ -89,20 +94,40 @@ Recalcular prioridade quando complexity ou departamento mudarem.
 - **Avaliação**: estrelas 1–5, opcional, salva em `tickets.rating`. Visível só ao admin
   no detalhe do chamado; não entra na timeline pública.
 
-## SLA (prazo de atendimento)
-Centralizado em `SlaService` / `sla.matrix.ts` (DRY). Horas corridas (24/7), contadas a
-partir da abertura (`tickets.sla_started_at`, gravado na criação do chamado). Derivado
-on-the-fly (`slaDueAt = slaStartedAt + horas`), nunca persistido como prazo.
+## SLA (dois relógios: resposta + conclusão)
+Centralizado em `SlaService` / `sla.matrix.ts` (DRY, fonte única, nunca calculado no banco).
+Horas corridas (24/7), contadas a partir da abertura (`tickets.sla_started_at`, gravado na
+criação). Prazos são **derivados on-the-fly** (`*_due_at = sla_started_at + horas`), nunca
+persistidos. **Substitui o SLA único de 3 valores (24h/3h/1h por prioridade), aprovado em 29/06**
+— ver decisions/sla-dois-tempos-automatico.
 
-| Prioridade | Prazo |
-|------------|-------|
-| low / medium | 24h |
-| high         | 3h  |
-| urgent       | 1h  |
+- **Resposta** (`responseDueAt`) — encerra quando o chamado é **assumido** (`assign()`) OU vai
+  para **`IN_PROGRESS`** (o que vier primeiro). Grava `tickets.first_response_at = now()` na
+  primeira ocorrência; nunca sobrescrito depois.
+- **Conclusão** (`resolutionDueAt`) — encerra quando vai para **`RESOLVED`** (`resolved_at`, já
+  existia).
+- Os dois prazos são derivados de **duas matrizes fixas `complexidade (4) × faixa-de-peso do
+  setor (3)`** (`RESPONSE_HOURS`/`RESOLUTION_HOURS` em `sla.matrix.ts`). Faixas de
+  `department.priority_weight`: Baixo = 1–2 · Médio = 3 · Alto = 4–5 (mesmo `weightBand()` da
+  matriz de prioridade). Complexidade nula (chamado legado) cai no default MÉDIA no cálculo.
 
-O **usuário NÃO vê prioridade/complexidade** (escondidas no front), apenas a promessa
-"Prazo de atendimento: até X horas". O **admin** vê "SLA estourado" quando o prazo passa
-sem resolução. STATUS: APROVADA por Fabio em 2026-06-29.
+| complexidade ↓ \ peso → | Conclusão: Baixo | Médio | Alto | Resposta: Baixo | Médio | Alto |
+|---|---|---|---|---|---|---|
+| low      | 48h | 40h | 24h | 8h | 6h | 4h |
+| medium   | 24h | 16h | 8h  | 4h | 3h | 2h |
+| high     | 8h  | 4h  | 2h  | 2h | 1h | 1h |
+| critical | 4h  | 2h  | 1h  | 1h | 1h | 1h |
+
+Resposta ≤ conclusão em todas as células.
+
+- **Visibilidade**: o **usuário** vê as duas promessas ("Resposta em até Xh · Conclusão em até
+  Yh") sem cor de estouro (segue sem ver prioridade/complexidade — regra preservada). O **staff**
+  (admin/operator) vê os dois relógios com contagem e **"Resposta estourada"/"Conclusão
+  estourada"** em vermelho ao passar do prazo; após a resposta ser registrada, o relógio de
+  resposta mostra "Respondido" e resta só o de conclusão.
+- A **prioridade** (badge de 4 níveis, calculada por `PriorityService`) **não governa mais os
+  prazos** — segue existindo só para exibição/filtro do staff.
+- STATUS: APROVADA por Fabio em 2026-07-07 (supera o SLA único de 29/06).
 
 ## Multi-setorial: roteamento, RBAC de setor executor e aprovação
 - **15 setores reais** (TI, RH, Tesouraria, Presidência, CEO, Manutenção, Limpeza, Almoxarifado,
@@ -116,10 +141,12 @@ sem resolução. STATUS: APROVADA por Fabio em 2026-06-29.
   chamados cujo `executorDepartmentId` bate com o seu (`listWhere`, `stats`, `detail`, `assign`,
   `updateStatus`, comentários, anexos). OPERATOR sem `departmentId` (equipe global) vê tudo.
   **ADMIN nunca é restrito por setor.** Ver [[rbac-setor-executor]].
-- **Aprovação**: setores com `requiresApproval=true` (só Presidência, hoje) fazem o chamado nascer
-  `PENDING_APPROVAL` em vez de `OPEN`. `sla_started_at` grava na criação de qualquer forma (sem
-  exceção). Qualquer ADMIN aprova via `PATCH /tickets/:id/approve` (`PENDING_APPROVAL` → `OPEN`).
-  `PENDING_APPROVAL` não pode ser setado manualmente por `PATCH /tickets/:id`. Ver [[aprovacao-chamados]].
+- **Aprovação removida (2026-07-07)**: `requiresApproval` da Presidência (único setor com `true`)
+  virou `false`. Nenhum chamado novo nasce `PENDING_APPROVAL`; o ramo de aprovação em `create()` e
+  o endpoint `PATCH /tickets/:id/approve` foram removidos (código morto). O valor de enum
+  `PENDING_APPROVAL` **fica dormente** no schema (mesmo precedente do `TRIAGE`) — não removido do
+  Postgres, só não é mais produzido. `Department.requiresApproval` permanece na tabela, inerte.
+  Ver [[aprovacao-chamados]] (← SUPERADA) e [[sla-dois-tempos-automatico]].
 - **Notificação híbrida por e-mail** (`Department.notificationEmail` + outbox, Plano 2), o
   **frontend** do fluxo multi-setorial (macro-bloco, fila por setor, aprovação — Plano 3) e o
   **totem** (`User.isKiosk`, Plano 4) fazem parte do mesmo design mas ainda não foram
