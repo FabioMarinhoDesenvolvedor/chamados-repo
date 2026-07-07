@@ -11,6 +11,8 @@ Pré-requisitos: Node >= 20, Docker (ou PostgreSQL local).
    (na primeira vez o Prisma pede um nome para a migration, ex: `init`)
    Não-interativo (passa o nome direto):
    `npm run db:migrate -w @chamados/api -- --name init`
+   Para a frente de IDs inteiros: o baseline consolidado estÃ¡ em
+   `packages/api/prisma/migrations/20260707130000_init`; aplique com reset/migrate no banco local.
 6. Seed: `npm run db:seed`
    (cria deptos TI/RH + os 13 setores da migration de seed, admin@chamados.local e user@chamados.local — senha: senha123)
 7. Dev: `npm run dev` (sobe shared em watch + api + web)

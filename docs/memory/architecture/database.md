@@ -3,128 +3,165 @@
 ## Engine
 PostgreSQL
 
-## Entidades Core (MVP)
+## Estratégia atual de IDs
+- PKs e FKs do domínio usam `Int`.
+- PK padrão: `@id @default(autoincrement())`.
+- Sequência começa em `1`.
+- A exceção é `ticket_attachments.filename`, que continua UUID aleatório porque é nome físico
+  de arquivo, não identificador de domínio.
+
+## Entidades core
 
 ### users
-| Coluna        | Tipo         | Notas                        |
-|---------------|--------------|------------------------------|
-| id            | UUID         | PK                           |
-| name          | VARCHAR(255) |                              |
-| email         | VARCHAR(255) | UNIQUE                       |
-| password_hash | VARCHAR(255) |                              |
-| role          | ENUM         | 'admin' | 'user'             |
-| department_id | UUID         | FK → departments             |
-| created_at    | TIMESTAMP    |                              |
-| updated_at    | TIMESTAMP    |                              |
+| Coluna        | Tipo      | Notas              |
+|---------------|-----------|--------------------|
+| id            | INTEGER   | PK                 |
+| name          | TEXT      |                    |
+| email         | TEXT      | UNIQUE             |
+| password_hash | TEXT      |                    |
+| role          | ENUM      | ADMIN/USER/OPERATOR |
+| department_id | INTEGER?  | FK -> departments  |
+| created_at    | TIMESTAMP |                    |
+| updated_at    | TIMESTAMP |                    |
 
 ### departments
-| Coluna       | Tipo         | Notas                         |
-|--------------|--------------|-------------------------------|
-| id           | UUID         | PK                            |
-| name         | VARCHAR(100) | UNIQUE                        |
-| priority_weight | INTEGER   | Peso do depto no cálculo      |
-| created_at   | TIMESTAMP    |                               |
+| Coluna             | Tipo      | Notas                         |
+|--------------------|-----------|-------------------------------|
+| id                 | INTEGER   | PK                            |
+| name               | TEXT      | UNIQUE                        |
+| priority_weight    | INTEGER   | Peso do depto no cálculo      |
+| is_requester_dept  | BOOLEAN   | origem de solicitantes        |
+| is_executor_dept   | BOOLEAN   | destino de execução           |
+| requires_approval  | BOOLEAN   | inerte hoje                   |
+| notification_email | TEXT?     | notificação de setor          |
+| created_at         | TIMESTAMP |                               |
 
 ### tickets
-| Coluna         | Tipo         | Notas                                  |
-|----------------|--------------|----------------------------------------|
-| id             | UUID         | PK                                     |
-| title          | VARCHAR(255) | No fluxo novo é DERIVADO ("Categoria › Subcategoria" = "Assunto"); antigos mantêm o título livre |
-| description    | TEXT         | NULLABLE — descrição complementar opcional (categorização é a entrada principal) |
-| category_id    | UUID         | NULLABLE — FK → ticket_categories (ON DELETE SET NULL). Antigos ficam NULL |
-| subcategory_id | UUID         | NULLABLE — FK → ticket_subcategories (ON DELETE SET NULL) |
-| complexity     | ENUM         | NULLABLE — definida na triagem pelo admin. 'low' \| 'medium' \| 'high' \| 'critical' |
-| department_id  | UUID         | FK → departments (do solicitante)      |
-| priority       | ENUM         | NULLABLE — calculada só após triagem. 'low' \| 'medium' \| 'high' \| 'urgent' |
-| status         | ENUM         | 'triage' (default) \| 'open' \| 'in_progress' \| 'resolved' \| 'closed' |
-| requester_id   | UUID         | FK → users                             |
-| assigned_to    | UUID         | FK → users (nullable; SEMPRE um admin) |
-| last_activity_at | TIMESTAMP  | Denormalização p/ notificação (última atividade) |
-| last_activity_by | UUID       | nullable — autor da última atividade (status/comentário) |
-| created_at     | TIMESTAMP    |                                        |
-| updated_at     | TIMESTAMP    |                                        |
-| resolved_at    | TIMESTAMP    | nullable                               |
+| Coluna                | Tipo      | Notas |
+|-----------------------|-----------|-------|
+| id                    | INTEGER   | PK |
+| title                 | TEXT      | derivado da categorização no fluxo novo |
+| description           | TEXT?     | descrição complementar opcional |
+| category_id           | INTEGER?  | FK -> ticket_categories |
+| subcategory_id        | INTEGER?  | FK -> ticket_subcategories |
+| detail_option_id      | INTEGER?  | FK -> ticket_detail_options |
+| complexity            | ENUM?     | derivada da categorização |
+| priority              | ENUM?     | derivada de complexidade x peso |
+| status                | ENUM      | TRIAGE/PENDING_APPROVAL dormentes; OPEN/IN_PROGRESS/RESOLVED/CLOSED vivos |
+| department_id         | INTEGER   | setor do solicitante |
+| executor_department_id| INTEGER?  | setor executor |
+| requester_id          | INTEGER   | FK -> users |
+| assigned_to           | INTEGER?  | FK -> users |
+| last_activity_at      | TIMESTAMP | base do não-lido |
+| last_activity_by      | INTEGER?  | autor da última atividade |
+| created_at            | TIMESTAMP | |
+| updated_at            | TIMESTAMP | |
+| resolved_at           | TIMESTAMP?| |
+| closed_at             | TIMESTAMP?| |
+| sla_started_at        | TIMESTAMP?| |
+| first_response_at     | TIMESTAMP?| |
+| rating                | INTEGER?  | avaliação opcional do solicitante |
 
-### ticket_categories  ·  ### ticket_subcategories (categorização guiada — blocos)
-Dados de REFERÊNCIA, populados pela própria migration `add_ticket_categories` (não pelo seed
-de dev), para produção receber via `prisma migrate deploy`. 6 categorias + 33 subcategorias.
-| Coluna     | Tipo         | Notas                                            |
-|------------|--------------|--------------------------------------------------|
-| id         | UUID         | PK                                               |
-| category_id| UUID         | (subcategories) FK → ticket_categories (RESTRICT)|
-| slug       | TEXT         | categories: UNIQUE; subcategories: UNIQUE(category_id, slug) |
-| name       | TEXT         | rótulo exibido                                   |
-| icon       | TEXT         | nome do ícone **lucide-react** (resolvido no front via registry) |
-| sort_order | INTEGER      | ordem de exibição no grid                        |
+### ticket_categories · ticket_subcategories · ticket_detail_options
+Dados de referência da categorização guiada.
+
+| Tabela | PK | FKs |
+|--------|----|-----|
+| ticket_categories | id INTEGER | department_id INTEGER? |
+| ticket_subcategories | id INTEGER | category_id INTEGER |
+| ticket_detail_options | id INTEGER | subcategory_id INTEGER |
+
+Observações:
+- `slug` continua identificador estável de referência.
+- `sort_order` continua controlando a exibição.
+- `base_complexity` em subcategoria/detalhe alimenta a priorização automática.
 
 ### ticket_status_history
-| Coluna       | Tipo      | Notas                                   |
-|--------------|-----------|-----------------------------------------|
-| id           | UUID      | PK                                      |
-| ticket_id    | UUID      | FK → tickets                            |
-| from_status  | ENUM      | status anterior (nullable na abertura)  |
-| to_status    | ENUM      | novo status                             |
-| changed_by   | UUID      | FK → users (quem mudou)                 |
-| created_at   | TIMESTAMP |                                         |
+| Coluna      | Tipo      | Notas |
+|-------------|-----------|-------|
+| id          | INTEGER   | PK |
+| ticket_id   | INTEGER   | FK -> tickets |
+| from_status | ENUM?     | nullable na abertura |
+| to_status   | ENUM      | novo status |
+| changed_by  | INTEGER   | FK -> users |
+| created_at  | TIMESTAMP | |
 
 ### ticket_comments
-| Coluna       | Tipo      | Notas                          |
-|--------------|-----------|--------------------------------|
-| id           | UUID      | PK                             |
-| ticket_id    | UUID      | FK → tickets                   |
-| author_id    | UUID      | FK → users                     |
-| body         | TEXT      |                                |
-| created_at   | TIMESTAMP |                                |
+| Coluna     | Tipo      | Notas |
+|------------|-----------|-------|
+| id         | INTEGER   | PK |
+| ticket_id  | INTEGER   | FK -> tickets |
+| author_id  | INTEGER   | FK -> users |
+| body       | TEXT      | |
+| created_at | TIMESTAMP | |
 
 ### ticket_attachments
-Imagens/prints anexados a um chamado (na abertura) ou a um comentário. Arquivo físico fica em disco (`packages/api/uploads/<uuid>.<ext>`), servido estático em `/api/uploads/<arquivo>`; a tabela guarda só metadados.
-| Coluna        | Tipo      | Notas                                                |
-|---------------|-----------|------------------------------------------------------|
-| id            | UUID      | PK                                                   |
-| ticket_id     | UUID      | FK → tickets (ON DELETE CASCADE)                     |
-| comment_id    | UUID      | FK → ticket_comments (nullable; ON DELETE CASCADE). NULL = anexo de nível do chamado |
-| filename      | TEXT      | nome físico aleatório (uuid) no disco                |
-| original_name | TEXT      | nome original do upload                              |
-| mime          | TEXT      | só imagens (png/jpeg/gif/webp)                       |
-| size          | INTEGER   | bytes (máx 5 MB, até 5 por upload)                   |
-| created_at    | TIMESTAMP |                                                      |
+| Coluna        | Tipo      | Notas |
+|---------------|-----------|-------|
+| id            | INTEGER   | PK |
+| ticket_id     | INTEGER   | FK -> tickets |
+| comment_id    | INTEGER?  | FK -> ticket_comments |
+| filename      | TEXT      | UUID físico no disco |
+| original_name | TEXT      | nome original |
+| mime          | TEXT      | só imagens |
+| size          | INTEGER   | bytes |
+| created_at    | TIMESTAMP | |
 
 ### ticket_read_state
-Marca quando cada usuário viu cada chamado (base da notificação por não-lido).
-| Coluna       | Tipo      | Notas                                  |
-|--------------|-----------|----------------------------------------|
-| id           | UUID      | PK                                     |
-| user_id      | UUID      | FK → users                             |
-| ticket_id    | UUID      | FK → tickets (ON DELETE CASCADE)       |
-| last_seen_at | TIMESTAMP | atualizado ao abrir o detalhe          |
-|              |           | UNIQUE(user_id, ticket_id)             |
+| Coluna       | Tipo      | Notas |
+|--------------|-----------|-------|
+| id           | INTEGER   | PK |
+| user_id      | INTEGER   | FK -> users |
+| ticket_id    | INTEGER   | FK -> tickets |
+| last_seen_at | TIMESTAMP | atualizado ao abrir detalhe |
 
-Regra de não-lido (`hasUnread`): `last_activity_by != usuário` E (`sem read_state` OU `last_activity_at > last_seen_at`). Calculada no service; exposta em `GET /tickets` (por item) e `GET /tickets/unread/count` (total, consumido por polling no front).
+Regra de não-lido (`hasUnread`):
+- `last_activity_by != usuário`
+- e (`sem read_state` ou `last_activity_at > last_seen_at`)
 
-## Regra de Prioridade
+### notification_outbox
+| Coluna     | Tipo      | Notas |
+|------------|-----------|-------|
+| id         | INTEGER   | PK |
+| ticket_id  | INTEGER   | FK -> tickets |
+| to_email   | TEXT      | destino |
+| subject    | TEXT      | assunto |
+| body       | TEXT      | corpo |
+| status     | ENUM      | PENDING/SENT/FAILED |
+| attempts   | INTEGER   | tentativas |
+| last_error | TEXT?     | último erro |
+| created_at | TIMESTAMP | |
+| sent_at    | TIMESTAMP?| |
+
+## Regra de prioridade
 `priority = f(complexity, department.priority_weight)` via matriz fixa.
-- Lógica centralizada no backend (`PriorityService`), nunca no banco
-- Matriz completa e faixas de peso em `architecture/business-rules.md`
-- Cores: verde (low), amarelo (medium), vermelho (high), roxo (urgent)
-- STATUS da matriz: APROVADA (2026-06-25)
+- Lógica centralizada no backend (`PriorityService`), nunca no banco.
+- Matriz e faixas de peso em `architecture/business-rules.md`.
 
-## Listagem e KPIs (performance — servidor 4 núcleos)
-- **Paginação real** em `GET /tickets` (`page`/`pageSize`, default 20; `scope=active` esconde
-  encerrados). Retorna `{ items, total, page, pageSize }` — NUNCA carrega tudo.
-- **KPIs no servidor**: `GET /tickets/stats` (groupBy status). Unread: `GET /tickets/unread/count`
-  via `NOT EXISTS` raw (anti-join) — não carrega chamados.
-- Listagem/detalhe/relatório usam `include` de categoria/subcategoria (sem N+1).
-- EXPLAIN ANALYZE (5k linhas): filtro seletivo por category_id → Index Scan (~0.1ms); count →
-  Index Only Scan; stats → HashAggregate (~2ms); unread → Hash Anti Join (~3ms).
+## Listagem e KPIs
+- Paginação real em `GET /tickets` (`page`/`pageSize`, default 20).
+- KPIs no servidor em `GET /tickets/stats`.
+- Unread em `GET /tickets/unread/count` via anti-join raw.
+- Listagem/detalhe/relatório usam `include` de categoria/subcategoria/detalhe.
 
-## Índices Previstos
-- tickets(status, priority) — listagem filtrada
-- tickets(category_id) · tickets(subcategory_id) — filtro por categoria
+## Índices previstos
+- tickets(status, priority)
+- tickets(category_id)
+- tickets(subcategory_id)
+- tickets(detail_option_id)
+- tickets(requester_id)
+- tickets(assigned_to)
+- tickets(executor_department_id)
 - ticket_subcategories(category_id) + UNIQUE(category_id, slug)
-- tickets(requester_id) — meus chamados
-- tickets(assigned_to) — chamados atribuídos
-- ticket_status_history(ticket_id) — timeline do chamado
-- ticket_comments(ticket_id) — thread do chamado
-- ticket_read_state(user_id) + UNIQUE(user_id, ticket_id) — notificação
-- ticket_attachments(ticket_id) + ticket_attachments(comment_id) — anexos por chamado/comentário
-- users(email) — login
+- ticket_detail_options(subcategory_id) + UNIQUE(subcategory_id, slug)
+- ticket_status_history(ticket_id)
+- ticket_comments(ticket_id)
+- ticket_read_state(user_id) + UNIQUE(user_id, ticket_id)
+- ticket_attachments(ticket_id)
+- ticket_attachments(comment_id)
+- users(email)
+
+## Migrations
+- O histórico UUID foi substituído por um baseline consolidado:
+  `packages/api/prisma/migrations/20260707130000_init/migration.sql`
+- Reset/migrate real do banco continua sendo papel do Fabio.

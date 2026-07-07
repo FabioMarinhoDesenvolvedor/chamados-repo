@@ -26,6 +26,7 @@
 - decisions/aprovacao-chamados.md  ← SUPERADA por sla-dois-tempos-automatico
 - decisions/notificacao-hibrida-email.md
 - decisions/sla-dois-tempos-automatico.md
+- decisions/ids-sequenciais-inteiros.md
 
 ## Gotchas
 - gotchas/responsividade.md
@@ -56,3 +57,4 @@
 - handoffs/sessao-2026-07-06-revisao-plano1.md  ← Revisão final do Plano 1: 2 bugs corrigidos (gate de aprovação + unread por setor), 48/48 testes. PENDENTE: smoke com banco no ar + decisão de merge
 - handoffs/sessao-2026-07-06-plano2-notificacao.md  ← Plano 2/4 COMPLETO (notificação por e-mail, outbox+worker+stub, 58/58). PENDENTE: smoke com banco no ar. Import de usuários reais parkeado; Planos 3-4 pendentes
 - handoffs/sessao-2026-07-07-sla-dois-tempos.md  ← SLA de dois tempos (resposta+conclusão) COMPLETO, 89/89. PENDENTE: db:generate/migrate + smoke com banco no ar (Fabio); revisão final whole-branch a anexar. PRÓXIMO: smoke, depois IDs sequenciais (frente própria) e Planos 3-4 do multi-setorial
+- handoffs/sessao-2026-07-07-ids-inteiros.md  ← IDs inteiros (UUID→Int, começa em 1) em código + baseline offline COMPLETOS, 89/89 (implementados por Codex, revisados por Claude). PENDENTE: reset/migrate + smoke (Fabio). Inclui limpeza de resíduos de triagem (fora do escopo original — ver handoff)
