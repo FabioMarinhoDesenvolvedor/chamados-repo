@@ -2,6 +2,7 @@ import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { TicketsService } from './tickets.service';
+import { SlaService } from './sla.service';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 
 // Captura os argumentos da última chamada a repo.countUnread (escopo por papel/setor).
@@ -15,14 +16,30 @@ function makeService(over: {
   department?: Record<string, unknown> | null;
   departmentsById?: Record<string, Record<string, unknown>>;
 }) {
+  // Campos default da projeção de dois relógios (Task 6): sem eles, withSla recebe
+  // `undefined` e os testes existentes de create/updateStatus quebram silenciosamente.
+  const slaProjectionDefaults = {
+    complexity: 'MEDIUM' as const,
+    slaStartedAt: null,
+    firstResponseAt: null,
+    resolvedAt: null,
+    department: { priorityWeight: 3 },
+  };
   const repo = {
     findById: async () => over.ticket ?? null,
-    assign: async (id: string, assignedTo: string) => ({ id, assignedTo }),
+    // assign() não passa pelo withSla (retorna o repo cru) — o stub padrão fica minimal;
+    // os testes de captura de 1ª resposta sobrescrevem repo.assign diretamente.
+    assign: async (id: string, assignedTo: string, _setFirst: boolean) => ({ id, assignedTo }),
     closeWithRating: async (args: unknown) => args,
-    createWithHistory: async (input: Record<string, unknown>) => ({ id: 'new', ...input }),
+    createWithHistory: async (input: Record<string, unknown>) => ({
+      ...slaProjectionDefaults,
+      id: 'new',
+      ...input,
+    }),
     // O repo real retorna o ticket atualizado (com `status`, não `toStatus` — esse é só
     // o parâmetro de entrada). O stub precisa espelhar isso para asserções em r.status.
     updateStatusWithHistory: async (input: Record<string, unknown>) => ({
+      ...slaProjectionDefaults,
       id: input.id,
       status: input.toStatus,
       ...input,
@@ -66,7 +83,9 @@ function makeService(over: {
   const config = {
     get: (k: string) => (k === 'APP_URL' ? 'https://chamados.local' : undefined),
   } as any;
-  return new TicketsService(repo, departments, users, priority, {} as any, categories, config);
+  // SlaService real (sem I/O, cálculo puro) — os testes de dois relógios precisam de
+  // responseDueAt/resolutionDueAt de verdade, não de um stub vazio.
+  return new TicketsService(repo, departments, users, priority, new SlaService(), categories, config);
 }
 
 const operator: AuthUser = { userId: 'op1', email: 'op@x', role: 'OPERATOR', mustChangePassword: false, departmentId: null, isKiosk: false };
@@ -256,10 +275,13 @@ test('addComment: chamado em andamento aceita comentário', async () => {
 // ---- hideByRole (projeção por papel) ----
 const ticketFields = { priority: 'HIGH' as const, complexity: 'CRITICAL' as const, rating: 4 };
 
-test('hideByRole: USER não vê prioridade/complexidade/nota', () => {
+test('hideByRole: USER não vê prioridade/complexidade/nota/breach', () => {
   const svc = makeService({});
   const r = (svc as any).hideByRole({ ...ticketFields }, requester);
-  assert.deepEqual(r, { priority: null, complexity: null, rating: null });
+  assert.deepEqual(r, {
+    priority: null, complexity: null, rating: null,
+    responseBreached: undefined, resolutionBreached: undefined,
+  });
 });
 
 test('hideByRole: OPERATOR vê prioridade/complexidade, mas NÃO a nota', () => {
@@ -315,23 +337,24 @@ test('create: resolve executorDepartmentId pela categoria e nasce OPEN quando o 
   assert.equal(r.status, 'OPEN');
 });
 
-test('create: setor executor com requiresApproval nasce PENDING_APPROVAL (SLA calculado igual)', async () => {
+test('create: chamado nasce sempre OPEN (aprovação removida)', async () => {
   const svc = makeService({
-    subcategory: subPresidencia,
+    subcategory: {
+      id: 'sub', categoryId: 'cat', baseComplexity: 'MEDIUM', details: [],
+      category: { id: 'cat', name: 'Rede', departmentId: 'exec' },
+      name: 'Lentidão',
+    },
+    department: { id: 'dep', name: 'RH', priorityWeight: 3 },
     departmentsById: {
-      dep1: { id: 'dep1', priorityWeight: 3, requiresApproval: false },
-      'dep-presidencia': { id: 'dep-presidencia', priorityWeight: 5, requiresApproval: true },
+      dep: { id: 'dep', name: 'RH', priorityWeight: 3 },
+      exec: { id: 'exec', name: 'TI', priorityWeight: 5, requiresApproval: true, notificationEmail: null },
     },
   });
   const r: any = await svc.create(
-    { categoryId: 'c-presidencia', subcategoryId: 's-presidencia', departmentId: 'dep1' } as any,
-    admin,
+    { categoryId: 'cat', subcategoryId: 'sub', description: null } as any,
+    { userId: 'u1', role: 'ADMIN', departmentId: null } as AuthUser,
   );
-  assert.equal(r.executorDepartmentId, 'dep-presidencia');
-  assert.equal(r.status, 'PENDING_APPROVAL');
-  // Prioridade calculada normalmente pelo peso do setor do SOLICITANTE (dep1, peso 3) —
-  // roteamento/aprovação do setor executor não afeta o cálculo de prioridade/SLA.
-  assert.equal(r.priority, 'PRIO(MEDIUM,3)');
+  assert.equal(r.status, 'OPEN'); // mesmo com requiresApproval=true no setor executor
 });
 
 test('create: categoria sem departmentId (não roteada) rejeita com 400', async () => {
@@ -491,14 +514,73 @@ test('unreadCount: USER conta só os próprios chamados', async () => {
   assert.equal((lastCountUnreadArgs?.scope as any).executorDepartmentId, undefined);
 });
 
-// ---- approve ----
-test('approve: transiciona PENDING_APPROVAL -> OPEN', async () => {
-  const svc = makeService({ ticket: { id: 't1', requesterId: 'req1', status: 'PENDING_APPROVAL' } });
-  const r: any = await svc.approve('t1', admin);
-  assert.equal(r.status, 'OPEN');
+// ---- dois relógios de SLA / captura da 1ª resposta (Task 6) ----
+test('assign grava first_response_at quando ainda nulo', async () => {
+  let assignArgs: any;
+  const svc = makeService({
+    ticket: { id: 't1', requesterId: 'u1', executorDepartmentId: null, firstResponseAt: null },
+    assignee: { id: 'op1', role: 'OPERATOR' },
+  });
+  (svc as any).repo.assign = async (id: string, to: string, setFirst: boolean) => {
+    assignArgs = { id, to, setFirst };
+    return { id, assignedTo: to, department: { priorityWeight: 3 } };
+  };
+  await svc.assign('t1', 'op1', { userId: 'op1', role: 'OPERATOR', departmentId: null } as AuthUser);
+  assert.equal(assignArgs.setFirst, true);
 });
 
-test('approve: rejeita chamado que não está PENDING_APPROVAL', async () => {
-  const svc = makeService({ ticket: { id: 't1', requesterId: 'req1', status: 'OPEN' } });
-  await assert.rejects(() => svc.approve('t1', admin), (e) => e instanceof BadRequestException);
+test('assign NÃO regrava first_response_at se já respondido', async () => {
+  let assignArgs: any;
+  const svc = makeService({
+    ticket: { id: 't1', requesterId: 'u1', executorDepartmentId: null, firstResponseAt: new Date() },
+    assignee: { id: 'op1', role: 'OPERATOR' },
+  });
+  (svc as any).repo.assign = async (id: string, to: string, setFirst: boolean) => {
+    assignArgs = { setFirst };
+    return { id, assignedTo: to, department: { priorityWeight: 3 } };
+  };
+  await svc.assign('t1', 'op1', { userId: 'op1', role: 'OPERATOR', departmentId: null } as AuthUser);
+  assert.equal(assignArgs.setFirst, false);
+});
+
+test('updateStatus para IN_PROGRESS grava first_response_at quando nulo', async () => {
+  let statusArgs: any;
+  const svc = makeService({
+    ticket: { id: 't1', requesterId: 'u1', executorDepartmentId: null, status: 'OPEN', firstResponseAt: null },
+  });
+  (svc as any).repo.updateStatusWithHistory = async (input: any) => {
+    statusArgs = input;
+    return { id: input.id, status: input.toStatus, complexity: 'MEDIUM', slaStartedAt: new Date(), firstResponseAt: input.firstResponseAt ?? null, resolvedAt: null, department: { priorityWeight: 3 } };
+  };
+  await svc.updateStatus('t1', 'IN_PROGRESS', { userId: 'a', role: 'ADMIN', departmentId: null } as AuthUser);
+  assert.ok(statusArgs.firstResponseAt instanceof Date);
+});
+
+test('projeção do staff traz os dois prazos e breach', async () => {
+  const past = new Date(Date.now() - 100 * 3600 * 1000); // 100h atrás -> estourado
+  const svc = makeService({
+    ticket: { id: 't1', requesterId: 'u1', executorDepartmentId: null, status: 'OPEN', firstResponseAt: null },
+  });
+  (svc as any).repo.updateStatusWithHistory = async (input: any) => ({
+    id: input.id, status: input.toStatus, complexity: 'MEDIUM', slaStartedAt: past,
+    firstResponseAt: input.firstResponseAt ?? null, resolvedAt: null, department: { priorityWeight: 3 },
+  });
+  const r: any = await svc.updateStatus('t1', 'RESOLVED', { userId: 'a', role: 'ADMIN', departmentId: null } as AuthUser);
+  assert.equal(typeof r.responseSlaHours, 'number');
+  assert.equal(typeof r.resolutionSlaHours, 'number');
+  assert.equal(r.resolutionBreached, true); // 100h > qualquer célula
+});
+
+test('projeção do USER esconde breach (undefined)', async () => {
+  const svc = makeService({
+    ticket: { id: 't1', requesterId: 'u1', executorDepartmentId: null, status: 'OPEN', firstResponseAt: null },
+  });
+  (svc as any).repo.updateStatusWithHistory = async (input: any) => ({
+    id: input.id, status: input.toStatus, complexity: 'MEDIUM', slaStartedAt: new Date(),
+    firstResponseAt: null, resolvedAt: null, department: { priorityWeight: 3 },
+  });
+  const r: any = await svc.updateStatus('t1', 'IN_PROGRESS', { userId: 'u1', role: 'USER', departmentId: null } as AuthUser);
+  assert.equal(r.responseBreached, undefined);
+  assert.equal(r.resolutionBreached, undefined);
+  assert.equal(typeof r.resolutionSlaHours, 'number'); // prazo continua visível ao usuário
 });

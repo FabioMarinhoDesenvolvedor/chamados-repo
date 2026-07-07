@@ -126,9 +126,8 @@ export class TicketsService {
     const complexity: Complexity =
       detail?.baseComplexity ?? subcategory.baseComplexity ?? 'MEDIUM';
     const priority = this.priority.compute(complexity, department.priorityWeight);
-    const status: TicketStatus = executorDepartment.requiresApproval
-      ? 'PENDING_APPROVAL'
-      : 'OPEN';
+    // Aprovação removida (spec sla-dois-tempos-automatico): todo chamado nasce OPEN.
+    const status: TicketStatus = 'OPEN';
 
     // Padrão outbox: o id é gerado aqui para montar o link do e-mail ANTES do insert e
     // enfileirar a notificação na MESMA transação do chamado (createWithHistory).
@@ -178,7 +177,7 @@ export class TicketsService {
     const department = await this.departments.findById(departmentId);
     if (!department) throw new NotFoundException('Departamento não encontrado');
 
-    const complexity = dto.complexity ?? ticket.complexity;
+    const complexity = ticket.complexity;
     const priority = complexity
       ? this.priority.compute(complexity, department.priorityWeight)
       : null;
@@ -376,6 +375,9 @@ export class TicketsService {
 
     const resolvedAt =
       status === 'RESOLVED' ? new Date() : status === 'CLOSED' ? ticket.resolvedAt : null;
+    // Primeira resposta: ir para IN_PROGRESS marca first_response_at se ainda não houver.
+    const firstResponseAt =
+      status === 'IN_PROGRESS' && ticket.firstResponseAt == null ? new Date() : undefined;
 
     const updated = await this.repo.updateStatusWithHistory({
       id,
@@ -383,24 +385,7 @@ export class TicketsService {
       toStatus: status,
       changedBy: user.userId,
       resolvedAt,
-    });
-    return this.hideByRole(this.withSla(updated), user);
-  }
-
-  // Aprovação (só ADMIN, só a partir de PENDING_APPROVAL) — reaproveita o mesmo
-  // updateStatusWithHistory usado por updateStatus(), sem tabela/repositório novos.
-  async approve(id: string, user: AuthUser) {
-    const ticket = await this.repo.findById(id);
-    if (!ticket) throw new NotFoundException('Chamado não encontrado');
-    if (ticket.status !== 'PENDING_APPROVAL') {
-      throw new BadRequestException('Chamado não está aguardando aprovação');
-    }
-    const updated = await this.repo.updateStatusWithHistory({
-      id,
-      fromStatus: ticket.status,
-      toStatus: 'OPEN',
-      changedBy: user.userId,
-      resolvedAt: null,
+      firstResponseAt,
     });
     return this.hideByRole(this.withSla(updated), user);
   }
@@ -444,7 +429,8 @@ export class TicketsService {
         'Apenas administradores ou operadores podem ser responsáveis por um chamado',
       );
     }
-    return this.repo.assign(id, assignedTo);
+    // Primeira resposta: assumir marca first_response_at se ainda não houver.
+    return this.repo.assign(id, assignedTo, ticket.firstResponseAt == null);
   }
 
   async addComment(id: string, body: string, user: AuthUser) {
@@ -463,30 +449,62 @@ export class TicketsService {
     return { ...comment, author: toUserPublic(comment.author) };
   }
 
-  // Anexa o prazo de SLA derivado (nulo enquanto em triagem / sem prioridade).
-  private withSla<T extends { priority: Priority | null; slaStartedAt: Date | null }>(
-    t: T,
-  ): T & { slaHours: number | null; slaDueAt: Date | null } {
-    if (!t.priority || !t.slaStartedAt) {
-      return { ...t, slaHours: null, slaDueAt: null };
+  // Anexa os dois prazos derivados (nulos sem complexidade-base/início/peso) + estouro.
+  // Estouro é computado sempre; hideByRole remove do USER.
+  private withSla<
+    T extends {
+      complexity: Complexity | null;
+      slaStartedAt: Date | null;
+      firstResponseAt: Date | null;
+      resolvedAt: Date | null;
+      department?: { priorityWeight: number } | null;
+    },
+  >(t: T) {
+    const weight = t.department?.priorityWeight;
+    if (t.slaStartedAt == null || weight == null) {
+      return {
+        ...t,
+        responseSlaHours: null, responseDueAt: null,
+        resolutionSlaHours: null, resolutionDueAt: null,
+        responseBreached: false, resolutionBreached: false,
+      };
     }
+    const responseDueAt = this.sla.responseDueAt(t.complexity, weight, t.slaStartedAt);
+    const resolutionDueAt = this.sla.resolutionDueAt(t.complexity, weight, t.slaStartedAt);
+    const now = Date.now();
+    const responseBreached =
+      t.firstResponseAt == null ? now > responseDueAt.getTime() : t.firstResponseAt > responseDueAt;
+    const resolutionBreached =
+      t.resolvedAt == null ? now > resolutionDueAt.getTime() : t.resolvedAt > resolutionDueAt;
     return {
       ...t,
-      slaHours: this.sla.hours(t.priority),
-      slaDueAt: this.sla.dueAt(t.priority, t.slaStartedAt),
+      responseSlaHours: this.sla.responseHours(t.complexity, weight),
+      responseDueAt,
+      resolutionSlaHours: this.sla.resolutionHours(t.complexity, weight),
+      resolutionDueAt,
+      responseBreached,
+      resolutionBreached,
     };
   }
 
   // Projeção por papel:
-  // - USER: esconde prioridade/complexidade (cálculo interno) e a nota.
+  // - USER: esconde prioridade/complexidade (cálculo interno), a nota e o estouro de SLA
+  //   (os prazos em si continuam visíveis — só o "estourou ou não" é interno).
   // - OPERATOR: vê prioridade/complexidade (precisa para atender), mas NÃO a nota
   //   (avaliação é visível só ao admin — business-rules).
   // - ADMIN: vê tudo.
-  // SLA derivado (slaHours/slaDueAt) é sempre mantido.
   private hideByRole<
-    T extends { priority: Priority | null; complexity: Complexity | null; rating: number | null },
+    T extends {
+      priority: Priority | null;
+      complexity: Complexity | null;
+      rating: number | null;
+      responseBreached?: boolean;
+      resolutionBreached?: boolean;
+    },
   >(t: T, user: AuthUser): T {
-    if (user.role === 'USER') return { ...t, priority: null, complexity: null, rating: null };
+    if (user.role === 'USER') {
+      return { ...t, priority: null, complexity: null, rating: null, responseBreached: undefined, resolutionBreached: undefined };
+    }
     if (user.role === 'OPERATOR') return { ...t, rating: null };
     return t;
   }
