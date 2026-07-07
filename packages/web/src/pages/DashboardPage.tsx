@@ -223,7 +223,11 @@ export function DashboardPage() {
                     </td>
                     <td className="px-4 py-3">
                       <span className="text-xs text-gray-500">
-                        {t.slaHours != null ? `até ${t.slaHours}h` : 'Em triagem'}
+                        {(() => {
+                          const h = t.firstResponseAt ? t.resolutionSlaHours : t.responseSlaHours;
+                          const rot = t.firstResponseAt ? 'Conclusão' : 'Resposta';
+                          return h != null ? `${rot}: até ${h}h` : 'Em triagem';
+                        })()}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -260,7 +264,11 @@ export function DashboardPage() {
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs text-gray-500">
-                      {t.slaHours != null ? `Prazo: até ${t.slaHours}h` : 'Em triagem'}
+                      {(() => {
+                        const h = t.firstResponseAt ? t.resolutionSlaHours : t.responseSlaHours;
+                        const rot = t.firstResponseAt ? 'Conclusão' : 'Resposta';
+                        return h != null ? `${rot}: até ${h}h` : 'Em triagem';
+                      })()}
                     </span>
                     <StatusBadge status={t.status} />
                     <span className="ml-auto text-xs text-gray-500">

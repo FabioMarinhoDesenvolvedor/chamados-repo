@@ -1,12 +1,6 @@
 import { FormEvent, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import {
-  COMPLEXITIES,
-  Complexity,
-  TicketAttachment,
-  TicketStatus,
-  isStaffRole,
-} from '@chamados/shared';
+import { TicketAttachment, TicketStatus, isStaffRole } from '@chamados/shared';
 import { useAuth } from '@/auth/auth-context';
 import {
   useAddComment,
@@ -14,11 +8,16 @@ import {
   useCloseTicket,
   useTicket,
   useUpdateStatus,
-  useUpdateTicket,
   useUploadAttachments,
 } from '@/features/tickets/api';
 import { StarRating } from '@/components/StarRating';
-import { slaText, isSlaBreached } from '@/lib/sla';
+import {
+  responseText,
+  resolutionText,
+  isResponded,
+  responseBreached,
+  resolutionBreached,
+} from '@/lib/sla';
 import { useUsers } from '@/features/users/api';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -30,7 +29,7 @@ import { CategoryIcon } from '@/components/CategoryIcon';
 import { Spinner } from '@/components/ui/spinner';
 import { AttachmentGallery } from '@/components/AttachmentGallery';
 import { AttachmentInput } from '@/components/AttachmentInput';
-import { COMPLEXITY_LABEL, STATUS_LABEL, complexityLabel } from '@/lib/labels';
+import { STATUS_LABEL, complexityLabel } from '@/lib/labels';
 
 const DONE: TicketStatus[] = ['RESOLVED', 'CLOSED'];
 
@@ -46,7 +45,6 @@ export function TicketDetailPage() {
   const isStaff = user ? isStaffRole(user.role) : false;
   const { data: ticket, isLoading } = useTicket(id);
   const updateStatus = useUpdateStatus(id);
-  const updateTicket = useUpdateTicket(id);
   const assignTicket = useAssignTicket(id);
   const addComment = useAddComment(id);
   const uploadAttachments = useUploadAttachments();
@@ -59,8 +57,11 @@ export function TicketDetailPage() {
   if (isLoading) return <Spinner label="Carregando chamado..." />;
   if (!ticket) return <p className="text-gray-500">Chamado não encontrado.</p>;
 
-  const sla = slaText(ticket.slaHours);
-  const breached = isSlaBreached(ticket.slaDueAt, ticket.status);
+  const response = responseText(ticket);
+  const resolution = resolutionText(ticket);
+  const responded = isResponded(ticket);
+  const responseLate = responseBreached(ticket);
+  const resolutionLate = resolutionBreached(ticket);
 
   // Possíveis responsáveis: equipe de atendimento (ADMIN ou OPERATOR).
   const staffUsers = allUsers?.filter((u) => isStaffRole(u.role)) ?? [];
@@ -125,11 +126,25 @@ export function TicketDetailPage() {
             </span>
           )}
         </div>
-        {sla ? (
-          <p className={`mt-2 text-sm ${breached && isStaff ? 'font-medium text-red-600' : 'text-grena'}`}>
-            ⏱ {sla}
-            {breached && isStaff && ' — SLA estourado'}
-          </p>
+        {response || resolution ? (
+          isStaff ? (
+            <div className="mt-2 space-y-1 text-sm">
+              <p className={responseLate ? 'font-medium text-red-600' : 'text-grena'}>
+                ⏱ {responded ? 'Respondido' : response}
+                {responseLate && ' — Resposta estourada'}
+              </p>
+              <p className={resolutionLate ? 'font-medium text-red-600' : 'text-grena'}>
+                ⏱ {resolution}
+                {resolutionLate && ' — Conclusão estourada'}
+              </p>
+            </div>
+          ) : (
+            <p className="mt-2 text-sm text-gray-500">
+              {response}
+              {response && resolution ? ' · ' : ''}
+              {resolution}
+            </p>
+          )
         ) : (
           <p className="mt-2 text-sm text-gray-500">Em análise — prazo definido após a triagem.</p>
         )}
@@ -176,31 +191,6 @@ export function TicketDetailPage() {
         <Card className="p-6">
           <h3 className="mb-4 text-sm font-semibold text-grena">Ações de atendimento</h3>
           <div className="grid gap-4 sm:grid-cols-2">
-            {/* Triagem (definir complexidade) é exclusiva do ADMIN. */}
-            {isAdmin && (
-              <div>
-                <Label>Complexidade</Label>
-                <Select
-                  value={ticket.complexity ?? ''}
-                  onChange={(e) =>
-                    e.target.value &&
-                    updateTicket.mutate({ complexity: e.target.value as Complexity })
-                  }
-                >
-                  <option value="" disabled>
-                    Definir complexidade...
-                  </option>
-                  {COMPLEXITIES.map((c) => (
-                    <option key={c} value={c}>
-                      {COMPLEXITY_LABEL[c]}
-                    </option>
-                  ))}
-                </Select>
-                <p className="mt-1 text-xs text-gray-500">
-                  Definir a complexidade calcula a prioridade e tira o chamado da triagem.
-                </p>
-              </div>
-            )}
             <div>
               <Label>Alterar status</Label>
               <Select

@@ -17,6 +17,7 @@ export const PRIORITY_CLASS: Record<Priority, string> = {
 
 export const STATUS_LABEL: Record<TicketStatus, string> = {
   TRIAGE: 'Em triagem',
+  PENDING_APPROVAL: 'Aguardando aprovação',
   OPEN: 'Aberto',
   IN_PROGRESS: 'Em andamento',
   RESOLVED: 'Resolvido (aguardando confirmação)',
@@ -25,6 +26,7 @@ export const STATUS_LABEL: Record<TicketStatus, string> = {
 
 export const STATUS_CLASS: Record<TicketStatus, string> = {
   TRIAGE: 'bg-grena/10 text-grena ring-grena/30',
+  PENDING_APPROVAL: 'bg-grena/10 text-grena ring-grena/30',
   OPEN: 'bg-blue-100 text-blue-800 ring-blue-600/20',
   IN_PROGRESS: 'bg-amber-100 text-amber-800 ring-amber-600/20',
   RESOLVED: 'bg-green-100 text-green-800 ring-green-600/20',
