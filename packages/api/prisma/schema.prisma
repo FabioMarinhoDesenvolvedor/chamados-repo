@@ -113,6 +113,7 @@ model Ticket {
   resolvedAt   DateTime?    @map("resolved_at")
   closedAt     DateTime?    @map("closed_at")
   slaStartedAt DateTime?    @map("sla_started_at")
+  firstResponseAt DateTime? @map("first_response_at")
   rating       Int?
 
   lastActivityAt DateTime @default(now()) @map("last_activity_at")

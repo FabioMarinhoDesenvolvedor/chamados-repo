@@ -42,6 +42,13 @@ async function main(): Promise<void> {
     data: { departmentId: ti.id },
   });
 
+  // Presidência não exige mais aprovação (spec sla-dois-tempos-automatico, 2026-07-07).
+  // Idempotente: reflete no dev o que a migration faz em prod, mesmo re-seedando sem re-migrar.
+  await prisma.department.updateMany({
+    where: { name: 'Presidência' },
+    data: { requiresApproval: false },
+  });
+
   const admin = await prisma.user.upsert({
     where: { email: 'admin@chamados.local' },
     update: {},
