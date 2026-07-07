@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { Complexity, Priority, TicketStatus } from '@chamados/shared';
 import { PrismaService } from '../../prisma/prisma.service';
+import { buildTicketEmail } from '../notifications/notification-email';
 
 @Injectable()
 export class TicketsRepository {
@@ -35,8 +36,8 @@ export class TicketsRepository {
   // visibilidade por papel: `onlyOwn` (USER) filtra por solicitante; `executorDepartmentId`
   // (OPERATOR escopado) filtra pelo setor executor.
   async countUnread(
-    userId: string,
-    scope: { onlyOwn: boolean; executorDepartmentId?: string },
+    userId: number,
+    scope: { onlyOwn: boolean; executorDepartmentId?: number },
   ): Promise<number> {
     const ownFilter = scope.onlyOwn ? Prisma.sql`AND t.requester_id = ${userId}` : Prisma.empty;
     const deptFilter = scope.executorDepartmentId
@@ -57,11 +58,11 @@ export class TicketsRepository {
     return Number(rows[0]?.count ?? 0);
   }
 
-  findById(id: string) {
+  findById(id: number) {
     return this.prisma.ticket.findUnique({ where: { id } });
   }
 
-  findDetail(id: string) {
+  findDetail(id: number) {
     return this.prisma.ticket.findUnique({
       where: { id },
       include: {
@@ -85,17 +86,17 @@ export class TicketsRepository {
     });
   }
 
-  findComment(id: string) {
+  findComment(id: number) {
     return this.prisma.ticketComment.findUnique({ where: { id } });
   }
 
-  findAttachment(id: string) {
+  findAttachment(id: number) {
     return this.prisma.ticketAttachment.findUnique({ where: { id } });
   }
 
   createAttachments(
-    ticketId: string,
-    commentId: string | null,
+    ticketId: number,
+    commentId: number | null,
     items: { filename: string; originalName: string; mime: string; size: number }[],
   ) {
     return this.prisma.ticketAttachment.createManyAndReturn({
@@ -106,24 +107,25 @@ export class TicketsRepository {
   createWithHistory(input: {
     title: string;
     description: string | null;
-    categoryId: string;
-    subcategoryId: string;
-    detailOptionId: string | null;
+    categoryId: number;
+    subcategoryId: number;
+    detailOptionId: number | null;
     complexity: Complexity;
     priority: Priority;
     status: TicketStatus;
-    departmentId: string;
-    executorDepartmentId: string;
-    requesterId: string;
-    id: string;
-    notification?: { toEmail: string; subject: string; body: string };
+    departmentId: number;
+    executorDepartmentId: number;
+    requesterId: number;
+    notification?: {
+      toEmail: string;
+      emailInput: Omit<Parameters<typeof buildTicketEmail>[0], 'ticketId'>;
+    };
   }) {
     return this.prisma.$transaction(async (tx) => {
       // Prioridade/SLA sempre calculados na criação (regra aprovada), independente
       // do chamado nascer OPEN ou PENDING_APPROVAL (aprovação não represa o SLA).
       const ticket = await tx.ticket.create({
         data: {
-          id: input.id,
           title: input.title,
           description: input.description,
           category: { connect: { id: input.categoryId } },
@@ -154,12 +156,16 @@ export class TicketsRepository {
       // Enqueue da notificação na MESMA transação (outbox): se o chamado commita, o e-mail
       // está garantido na fila; se dá rollback, nada de e-mail órfão.
       if (input.notification) {
+        const email = buildTicketEmail({
+          ticketId: ticket.id,
+          ...input.notification.emailInput,
+        });
         await tx.notificationOutbox.create({
           data: {
             ticketId: ticket.id,
             toEmail: input.notification.toEmail,
-            subject: input.notification.subject,
-            body: input.notification.body,
+            subject: email.subject,
+            body: email.body,
           },
         });
       }
@@ -168,10 +174,10 @@ export class TicketsRepository {
   }
 
   updateStatusWithHistory(input: {
-    id: string;
+    id: number;
     fromStatus: TicketStatus;
     toStatus: TicketStatus;
-    changedBy: string;
+    changedBy: number;
     resolvedAt: Date | null;
     firstResponseAt?: Date; // gravado só quando informado (1º IN_PROGRESS)
   }) {
@@ -200,9 +206,9 @@ export class TicketsRepository {
   }
 
   closeWithRating(input: {
-    id: string;
+    id: number;
     fromStatus: TicketStatus;
-    changedBy: string;
+    changedBy: number;
     rating: number | null;
   }) {
     return this.prisma.$transaction(async (tx) => {
@@ -229,12 +235,12 @@ export class TicketsRepository {
   }
 
   applyTriage(input: {
-    id: string;
+    id: number;
     complexity: Complexity | null;
     priority: Priority | null;
-    departmentId: string;
+    departmentId: number;
     moveToOpen: boolean;
-    changedBy: string;
+    changedBy: number;
   }) {
     return this.prisma.$transaction(async (tx) => {
       const ticket = await tx.ticket.update({
@@ -264,7 +270,7 @@ export class TicketsRepository {
     });
   }
 
-  assign(id: string, assignedTo: string, setFirstResponse: boolean) {
+  assign(id: number, assignedTo: number, setFirstResponse: boolean) {
     return this.prisma.ticket.update({
       where: { id },
       data: {
@@ -276,7 +282,7 @@ export class TicketsRepository {
     });
   }
 
-  addComment(ticketId: string, authorId: string, body: string) {
+  addComment(ticketId: number, authorId: number, body: string) {
     return this.prisma.$transaction(async (tx) => {
       const comment = await tx.ticketComment.create({
         data: { ticketId, authorId, body },
@@ -290,7 +296,7 @@ export class TicketsRepository {
     });
   }
 
-  markSeen(userId: string, ticketId: string) {
+  markSeen(userId: number, ticketId: number) {
     return this.prisma.ticketReadState.upsert({
       where: { userId_ticketId: { userId, ticketId } },
       update: { lastSeenAt: new Date() },
@@ -298,7 +304,7 @@ export class TicketsRepository {
     });
   }
 
-  findReadStates(userId: string, ticketIds: string[]) {
+  findReadStates(userId: number, ticketIds: number[]) {
     return this.prisma.ticketReadState.findMany({
       where: { userId, ticketId: { in: ticketIds } },
     });

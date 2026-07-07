@@ -10,7 +10,7 @@ export class UsersRepository {
     return this.prisma.user.findUnique({ where: { email } });
   }
 
-  findById(id: string) {
+  findById(id: number) {
     return this.prisma.user.findUnique({ where: { id } });
   }
 
@@ -22,12 +22,12 @@ export class UsersRepository {
     return this.prisma.user.create({ data });
   }
 
-  update(id: string, data: Prisma.UserUpdateInput) {
+  update(id: number, data: Prisma.UserUpdateInput) {
     return this.prisma.user.update({ where: { id }, data });
   }
 
   // Vínculos que impedem exclusão (chamados/atividades). read_state é descartável.
-  async countBlockingRefs(userId: string): Promise<number> {
+  async countBlockingRefs(userId: number): Promise<number> {
     const [requested, assigned, comments, statusChanges] = await this.prisma.$transaction([
       this.prisma.ticket.count({ where: { requesterId: userId } }),
       this.prisma.ticket.count({ where: { assignedTo: userId } }),
@@ -37,7 +37,7 @@ export class UsersRepository {
     return requested + assigned + comments + statusChanges;
   }
 
-  remove(userId: string) {
+  remove(userId: number) {
     return this.prisma.$transaction(async (tx) => {
       await tx.ticketReadState.deleteMany({ where: { userId } });
       return tx.user.delete({ where: { id: userId } });

@@ -3,7 +3,7 @@ import {
   Controller,
   Get,
   Param,
-  ParseUUIDPipe,
+  ParseIntPipe,
   Patch,
   Post,
   Query,
@@ -57,14 +57,14 @@ export class TicketsController {
   }
 
   @Get(':id')
-  detail(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+  detail(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
     return this.tickets.detail(id, user);
   }
 
   @Patch(':id')
   @Roles('ADMIN')
   update(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateTicketDto,
     @CurrentUser() user: AuthUser,
   ) {
@@ -74,7 +74,7 @@ export class TicketsController {
   @Patch(':id/status')
   @Roles('ADMIN', 'OPERATOR')
   updateStatus(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateStatusDto,
     @CurrentUser() user: AuthUser,
   ) {
@@ -83,7 +83,7 @@ export class TicketsController {
 
   @Patch(':id/close')
   close(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Body() dto: CloseTicketDto,
     @CurrentUser() user: AuthUser,
   ) {
@@ -93,7 +93,7 @@ export class TicketsController {
   @Patch(':id/assign')
   @Roles('ADMIN', 'OPERATOR')
   assign(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Body() dto: AssignTicketDto,
     @CurrentUser() user: AuthUser,
   ) {
@@ -102,7 +102,7 @@ export class TicketsController {
 
   @Post(':id/comments')
   addComment(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Body() dto: AddCommentDto,
     @CurrentUser() user: AuthUser,
   ) {
@@ -112,7 +112,7 @@ export class TicketsController {
   @Post(':id/attachments')
   @UseInterceptors(FilesInterceptor('files', MAX_FILES, multerOptions))
   addAttachments(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', ParseIntPipe) id: number,
     @UploadedFiles() files: Express.Multer.File[],
     @Body() dto: AddAttachmentsDto,
     @CurrentUser() user: AuthUser,
@@ -122,8 +122,8 @@ export class TicketsController {
 
   @Get(':id/attachments/:attachmentId')
   async getAttachment(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
+    @Param('id', ParseIntPipe) id: number,
+    @Param('attachmentId', ParseIntPipe) attachmentId: number,
     @CurrentUser() user: AuthUser,
     @Res() res: Response,
   ) {

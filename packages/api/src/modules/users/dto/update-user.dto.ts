@@ -1,12 +1,13 @@
 import {
   IsEmail,
   IsIn,
+  IsInt,
   IsOptional,
   IsString,
-  IsUUID,
   MinLength,
   ValidateIf,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ROLES, Role, TEMP_PASSWORD_MIN_LENGTH } from '@chamados/shared';
 
 export class UpdateUserDto {
@@ -28,9 +29,10 @@ export class UpdateUserDto {
   @IsIn(ROLES)
   role?: Role;
 
-  // Aceita string (UUID) ou null para remover do departamento.
+  // Aceita number ou null para remover do departamento.
   @IsOptional()
   @ValidateIf((_, v) => v !== null)
-  @IsUUID()
-  departmentId?: string | null;
+  @Type(() => Number)
+  @IsInt()
+  departmentId?: number | null;
 }

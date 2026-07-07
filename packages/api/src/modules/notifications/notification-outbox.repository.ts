@@ -14,7 +14,7 @@ export class NotificationOutboxRepository {
     });
   }
 
-  markSent(id: string) {
+  markSent(id: number) {
     return this.prisma.notificationOutbox.update({
       where: { id },
       data: { status: 'SENT', sentAt: new Date() },
@@ -22,7 +22,7 @@ export class NotificationOutboxRepository {
   }
 
   // Erro: incrementa tentativas e grava o motivo; ao chegar a 3, marca FAILED (para de tentar).
-  markFailed(id: string, attempts: number, error: string) {
+  markFailed(id: number, attempts: number, error: string) {
     const nextAttempts = attempts + 1;
     return this.prisma.notificationOutbox.update({
       where: { id },

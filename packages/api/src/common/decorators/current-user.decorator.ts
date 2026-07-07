@@ -2,11 +2,11 @@ import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import { Role } from '@chamados/shared';
 
 export interface AuthUser {
-  userId: string;
+  userId: number;
   email: string;
   role: Role;
   mustChangePassword: boolean;
-  departmentId: string | null;
+  departmentId: number | null;
   isKiosk: boolean;
 }
 

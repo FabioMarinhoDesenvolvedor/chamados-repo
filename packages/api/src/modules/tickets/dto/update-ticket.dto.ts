@@ -1,7 +1,9 @@
-import { IsOptional, IsUUID } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsInt, IsOptional } from 'class-validator';
 
 export class UpdateTicketDto {
   @IsOptional()
-  @IsUUID()
-  departmentId?: string;
+  @Type(() => Number)
+  @IsInt()
+  departmentId?: number;
 }

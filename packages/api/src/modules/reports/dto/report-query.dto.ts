@@ -1,10 +1,12 @@
-import { IsDateString, IsOptional, IsUUID } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsDateString, IsInt, IsOptional } from 'class-validator';
 
 export class ReportQueryDto {
-  // Vazio = todos os usuários.
+  // Vazio = todos os usuarios.
   @IsOptional()
-  @IsUUID()
-  userId?: string;
+  @Type(() => Number)
+  @IsInt()
+  userId?: number;
 
   // Datas no formato YYYY-MM-DD (do <input type="date">).
   @IsOptional()
@@ -16,10 +18,12 @@ export class ReportQueryDto {
   to?: string;
 
   @IsOptional()
-  @IsUUID()
-  categoryId?: string;
+  @Type(() => Number)
+  @IsInt()
+  categoryId?: number;
 
   @IsOptional()
-  @IsUUID()
-  subcategoryId?: string;
+  @Type(() => Number)
+  @IsInt()
+  subcategoryId?: number;
 }

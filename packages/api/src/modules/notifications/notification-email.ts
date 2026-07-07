@@ -1,7 +1,7 @@
 import { Priority } from '@chamados/shared';
 
 export interface TicketEmailInput {
-  ticketId: string;
+  ticketId: number;
   title: string;
   requesterName: string;
   requesterDepartmentName: string;

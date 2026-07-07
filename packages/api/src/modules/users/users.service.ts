@@ -21,11 +21,11 @@ export class UsersService {
     return this.repo.findByEmail(email);
   }
 
-  findById(id: string) {
+  findById(id: number) {
     return this.repo.findById(id);
   }
 
-  async findOnePublic(id: string) {
+  async findOnePublic(id: number) {
     const user = await this.repo.findById(id);
     if (!user) throw new NotFoundException('Usuário não encontrado');
     return toUserPublic(user);
@@ -51,7 +51,7 @@ export class UsersService {
     return toUserPublic(user);
   }
 
-  async update(id: string, dto: UpdateUserDto) {
+  async update(id: number, dto: UpdateUserDto) {
     const user = await this.repo.findById(id);
     if (!user) throw new NotFoundException('Usuário não encontrado');
 
@@ -80,12 +80,12 @@ export class UsersService {
   }
 
   // Primeiro acesso: define a senha sem exigir a atual (válido só enquanto mustChangePassword).
-  async completeFirstAccess(userId: string, newPassword: string) {
+  async completeFirstAccess(userId: number, newPassword: string) {
     const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
     return this.repo.update(userId, { passwordHash, mustChangePassword: false });
   }
 
-  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+  async changePassword(userId: number, currentPassword: string, newPassword: string) {
     const user = await this.repo.findById(userId);
     if (!user) throw new NotFoundException('Usuário não encontrado');
     const ok = await bcrypt.compare(currentPassword, user.passwordHash);
@@ -95,7 +95,7 @@ export class UsersService {
     return { success: true };
   }
 
-  async remove(id: string, current: AuthUser) {
+  async remove(id: number, current: AuthUser) {
     const user = await this.repo.findById(id);
     if (!user) throw new NotFoundException('Usuário não encontrado');
     if (id === current.userId) {

@@ -10,7 +10,7 @@ export class DepartmentsRepository {
     return this.prisma.department.findMany({ orderBy: { name: 'asc' } });
   }
 
-  findById(id: string) {
+  findById(id: number) {
     return this.prisma.department.findUnique({ where: { id } });
   }
 
@@ -22,22 +22,22 @@ export class DepartmentsRepository {
     return this.prisma.department.create({ data });
   }
 
-  countUsers(departmentId: string) {
+  countUsers(departmentId: number) {
     return this.prisma.user.count({ where: { departmentId } });
   }
 
   // Conta tanto chamados abertos PELO setor (solicitante) quanto EXECUTADOS por ele.
-  countTickets(departmentId: string) {
+  countTickets(departmentId: number) {
     return this.prisma.ticket.count({
       where: { OR: [{ departmentId }, { executorDepartmentId: departmentId }] },
     });
   }
 
-  countCategories(departmentId: string) {
+  countCategories(departmentId: number) {
     return this.prisma.ticketCategory.count({ where: { departmentId } });
   }
 
-  remove(id: string) {
+  remove(id: number) {
     return this.prisma.department.delete({ where: { id } });
   }
 }

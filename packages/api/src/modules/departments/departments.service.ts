@@ -23,7 +23,7 @@ export class DepartmentsService {
     });
   }
 
-  async remove(id: string) {
+  async remove(id: number) {
     const dept = await this.repo.findById(id);
     if (!dept) throw new NotFoundException('Departamento não encontrado');
     const [users, tickets, categories] = await Promise.all([

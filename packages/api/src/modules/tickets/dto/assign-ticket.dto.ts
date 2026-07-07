@@ -1,6 +1,8 @@
-import { IsUUID } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsInt } from 'class-validator';
 
 export class AssignTicketDto {
-  @IsUUID()
-  assignedTo!: string;
+  @Type(() => Number)
+  @IsInt()
+  assignedTo!: number;
 }

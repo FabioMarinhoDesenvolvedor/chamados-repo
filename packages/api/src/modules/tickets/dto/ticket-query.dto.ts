@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
 import { PRIORITIES, Priority, TICKET_STATUSES, TicketStatus } from '@chamados/shared';
 
 export class TicketQueryDto {
@@ -12,18 +12,20 @@ export class TicketQueryDto {
   priority?: Priority;
 
   @IsOptional()
-  @IsUUID()
-  categoryId?: string;
+  @Type(() => Number)
+  @IsInt()
+  categoryId?: number;
 
   @IsOptional()
-  @IsUUID()
-  subcategoryId?: string;
+  @Type(() => Number)
+  @IsInt()
+  subcategoryId?: number;
 
   @IsOptional()
   @IsIn(['active', 'all'])
   scope?: 'active' | 'all';
 
-  // Paginação real (1-based). Default aplicado no service: page=1, pageSize=20.
+  // Paginacao real (1-based). Default aplicado no service: page=1, pageSize=20.
   @IsOptional()
   @Type(() => Number)
   @IsInt()

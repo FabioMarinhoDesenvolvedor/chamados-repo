@@ -35,7 +35,7 @@ export function ensureAttachmentsDir(): void {
 }
 
 // URL do anexo: endpoint autenticado (não há mais arquivo público).
-export function attachmentUrl(ticketId: string, attachmentId: string): string {
+export function attachmentUrl(ticketId: number, attachmentId: number): string {
   return `/api/tickets/${ticketId}/attachments/${attachmentId}`;
 }
 

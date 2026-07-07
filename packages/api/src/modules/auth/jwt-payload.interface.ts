@@ -1,7 +1,7 @@
 import { Role } from '@chamados/shared';
 
 export interface JwtPayload {
-  sub: string;
+  sub: number;
   email: string;
   role: Role;
 }

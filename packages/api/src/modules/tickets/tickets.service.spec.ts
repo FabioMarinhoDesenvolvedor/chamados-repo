@@ -385,7 +385,9 @@ test('create: setor executor com notificationEmail enfileira notificação (payl
     admin,
   );
   assert.equal(r.notification.toEmail, 'manutencao@clube.local');
-  assert.match(r.notification.subject, /^Novo chamado — /);
+  assert.equal(r.notification.emailInput.requesterDepartmentName, 'Tesouraria');
+  assert.equal(r.notification.emailInput.priority, 'PRIO(MEDIUM,3)');
+  assert.equal(r.notification.emailInput.title, 'Elétrica › Solicitação geral');
 });
 
 test('create: setor executor sem notificationEmail não enfileira notificação', async () => {

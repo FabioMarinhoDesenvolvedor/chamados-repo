@@ -1,8 +1,10 @@
-import { IsOptional, IsUUID } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsInt, IsOptional } from 'class-validator';
 
 export class AddAttachmentsDto {
-  // Quando presente, vincula os anexos a um comentário do chamado.
+  // Quando presente, vincula os anexos a um comentario do chamado.
   @IsOptional()
-  @IsUUID()
-  commentId?: string;
+  @Type(() => Number)
+  @IsInt()
+  commentId?: number;
 }

@@ -19,7 +19,7 @@ export class CategoriesRepository {
   }
 
   // Inclui os detalhes para validar obrigatoriedade/pertencimento na criação do chamado.
-  findSubcategory(id: string) {
+  findSubcategory(id: number) {
     return this.prisma.ticketSubcategory.findUnique({
       where: { id },
       include: { category: true, details: { orderBy: { sortOrder: 'asc' } } },

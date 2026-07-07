@@ -1,30 +1,36 @@
-import { IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsInt, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class CreateTicketDto {
-  // Categorização guiada (entrada principal, substitui o título livre).
-  @IsUUID()
-  categoryId!: string;
+  // Categorizacao guiada (entrada principal, substitui o titulo livre).
+  @Type(() => Number)
+  @IsInt()
+  categoryId!: number;
 
-  @IsUUID()
-  subcategoryId!: string;
+  @Type(() => Number)
+  @IsInt()
+  subcategoryId!: number;
 
-  // 3º nível ("detalhe") — obrigatório quando a subcategoria escolhida tiver detalhes.
+  // 3o nivel ("detalhe") - obrigatorio quando a subcategoria escolhida tiver detalhes.
   @IsOptional()
-  @IsUUID()
-  detailOptionId?: string;
+  @Type(() => Number)
+  @IsInt()
+  detailOptionId?: number;
 
-  // Descrição complementar opcional (detalhes dentro da subcategoria).
+  // Descricao complementar opcional (detalhes dentro da subcategoria).
   @IsOptional()
   @IsString()
   @MinLength(3)
   @MaxLength(2000)
   description?: string;
 
-  @IsUUID()
-  departmentId!: string;
+  @Type(() => Number)
+  @IsInt()
+  departmentId!: number;
 
-  // Apenas ADMIN: abre o chamado em nome de outro usuário (solicitante).
+  // Apenas ADMIN: abre o chamado em nome de outro usuario (solicitante).
   @IsOptional()
-  @IsUUID()
-  requesterId?: string;
+  @Type(() => Number)
+  @IsInt()
+  requesterId?: number;
 }

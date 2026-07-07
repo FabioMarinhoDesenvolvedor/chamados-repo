@@ -4,7 +4,7 @@ import {
   Delete,
   Get,
   Param,
-  ParseUUIDPipe,
+  ParseIntPipe,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -33,7 +33,7 @@ export class DepartmentsController {
 
   @Delete(':id')
   @Roles('ADMIN')
-  remove(@Param('id', ParseUUIDPipe) id: string) {
+  remove(@Param('id', ParseIntPipe) id: number) {
     return this.departments.remove(id);
   }
 }

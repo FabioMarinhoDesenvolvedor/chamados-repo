@@ -26,9 +26,9 @@ import { buildTicketEmail } from '../notifications/notification-email';
 
 // Anexo cru do banco → DTO público (troca o filename físico por uma URL servível).
 interface RawAttachment {
-  id: string;
-  ticketId: string;
-  commentId: string | null;
+  id: number;
+  ticketId: number;
+  commentId: number | null;
   filename: string;
   originalName: string;
   mime: string;
@@ -94,7 +94,7 @@ export class TicketsService {
     // O 3º nível ("detalhe") é OPCIONAL — a abertura não pode travar quem não sabe o detalhe.
     // Se informado, precisa pertencer à subcategoria; se ausente, o chamado segue sem detalhe.
     const details = subcategory.details ?? [];
-    let detailOptionId: string | null = null;
+    let detailOptionId: number | null = null;
     let detailName: string | null = null;
     if (dto.detailOptionId) {
       const detail = details.find((d) => d.id === dto.detailOptionId);
@@ -131,26 +131,30 @@ export class TicketsService {
 
     // Padrão outbox: o id é gerado aqui para montar o link do e-mail ANTES do insert e
     // enfileirar a notificação na MESMA transação do chamado (createWithHistory).
-    const id = randomUUID();
-    let notification: { toEmail: string; subject: string; body: string } | undefined;
+    let notification:
+      | {
+          toEmail: string;
+          emailInput: Omit<Parameters<typeof buildTicketEmail>[0], 'ticketId'>;
+        }
+      | undefined;
     if (executorDepartment.notificationEmail) {
       const requesterUser = await this.users.findById(requesterId);
-      const email = buildTicketEmail({
-        ticketId: id,
-        title,
-        requesterName: requesterUser?.name ?? requesterId,
-        requesterDepartmentName: department.name,
-        priority,
-        description: dto.description ?? null,
-        originLocation: null,
-        createdAt: new Date(),
-        appUrl: this.config.get<string>('APP_URL') ?? null,
-      });
-      notification = { toEmail: executorDepartment.notificationEmail, ...email };
+      notification = {
+        toEmail: executorDepartment.notificationEmail,
+        emailInput: {
+          title,
+          requesterName: requesterUser?.name ?? String(requesterId),
+          requesterDepartmentName: department.name,
+          priority,
+          description: dto.description ?? null,
+          originLocation: null,
+          createdAt: new Date(),
+          appUrl: this.config.get<string>('APP_URL') ?? null,
+        },
+      };
     }
 
     const created = await this.repo.createWithHistory({
-      id,
       title,
       description: dto.description ?? null,
       categoryId: dto.categoryId,
@@ -169,7 +173,7 @@ export class TicketsService {
     return this.hideByRole(this.withSla(created), user);
   }
 
-  async update(id: string, dto: UpdateTicketDto, user: AuthUser) {
+  async update(id: number, dto: UpdateTicketDto, user: AuthUser) {
     const ticket = await this.repo.findById(id);
     if (!ticket) throw new NotFoundException('Chamado não encontrado');
 
@@ -181,14 +185,12 @@ export class TicketsService {
     const priority = complexity
       ? this.priority.compute(complexity, department.priorityWeight)
       : null;
-    const moveToOpen = ticket.status === 'TRIAGE' && complexity != null;
-
     const updated = await this.repo.applyTriage({
       id,
       complexity,
       priority,
       departmentId,
-      moveToOpen,
+      moveToOpen: false,
       changedBy: user.userId,
     });
     // Retorna já projetado (prioridade recalculada + SLA derivado + projeção por papel),
@@ -209,7 +211,7 @@ export class TicketsService {
       const hidden: TicketStatus[] = [];
       // "Em aberto": esconde resolvidos/concluídos quando não há status específico.
       if (query.scope === 'active') hidden.push('RESOLVED', 'CLOSED');
-      // Chamado ainda não aprovado não aparece na fila de atendimento do setor.
+      // Valor legado dormente: não aparece na fila de atendimento do setor.
       if (isOperatorScoped) hidden.push('PENDING_APPROVAL');
       if (hidden.length) where.status = { notIn: hidden };
     }
@@ -220,7 +222,7 @@ export class TicketsService {
     // Visibilidade: USER vê apenas os próprios chamados; OPERATOR escopado vê só o
     // próprio setor executor; ADMIN e OPERATOR sem setor veem tudo (comportamento atual).
     if (user.role === 'USER') where.requesterId = user.userId;
-    else if (isOperatorScoped) where.executorDepartmentId = user.departmentId as string;
+    else if (isOperatorScoped) where.executorDepartmentId = user.departmentId;
 
     return where;
   }
@@ -273,7 +275,7 @@ export class TicketsService {
     };
   }
 
-  async detail(id: string, user: AuthUser) {
+  async detail(id: number, user: AuthUser) {
     const ticket = await this.repo.findDetail(id);
     if (!ticket) throw new NotFoundException('Chamado não encontrado');
     this.ensureCanView(ticket, user);
@@ -296,9 +298,9 @@ export class TicketsService {
   }
 
   async addAttachments(
-    ticketId: string,
+    ticketId: number,
     files: Express.Multer.File[],
-    commentId: string | undefined,
+    commentId: number | undefined,
     user: AuthUser,
   ) {
     const ticket = await this.repo.findById(ticketId);
@@ -327,7 +329,7 @@ export class TicketsService {
   }
 
   // Lê o anexo do disco externo e devolve o conteúdo (acesso protegido por ensureCanView).
-  async getAttachmentFile(ticketId: string, attachmentId: string, user: AuthUser) {
+  async getAttachmentFile(ticketId: number, attachmentId: number, user: AuthUser) {
     const attachment = await this.repo.findAttachment(attachmentId);
     if (!attachment || attachment.ticketId !== ticketId) {
       throw new NotFoundException('Anexo não encontrado');
@@ -355,7 +357,7 @@ export class TicketsService {
     return { count };
   }
 
-  async updateStatus(id: string, status: TicketStatus, user: AuthUser) {
+  async updateStatus(id: number, status: TicketStatus, user: AuthUser) {
     if (status === 'PENDING_APPROVAL') {
       throw new BadRequestException(
         'Não é possível definir "aguardando aprovação" manualmente — use o endpoint de aprovação',
@@ -365,8 +367,8 @@ export class TicketsService {
     if (!ticket) throw new NotFoundException('Chamado não encontrado');
     this.ensureCanView(ticket, user);
 
-    // Gate de aprovação: a ÚNICA saída de PENDING_APPROVAL é approve() (ADMIN). Sem esta
-    // guarda, um OPERATOR poderia "aprovar por fora" mudando o status direto para OPEN/IN_PROGRESS.
+    // Valor legado dormente: se ainda existir no banco, precisa ser saneado antes de mudar
+    // o status manualmente.
     if (ticket.status === 'PENDING_APPROVAL') {
       throw new BadRequestException(
         'Chamado aguardando aprovação — use o endpoint de aprovação (não é possível mudar o status manualmente)',
@@ -392,7 +394,7 @@ export class TicketsService {
 
   // Encerramento pelo solicitante (ou admin): só a partir de RESOLVED.
   // OPERATOR resolve o chamado, mas a confirmação/conclusão é do solicitante ou do ADMIN.
-  async close(id: string, rating: number | undefined, user: AuthUser) {
+  async close(id: number, rating: number | undefined, user: AuthUser) {
     const ticket = await this.repo.findById(id);
     if (!ticket) throw new NotFoundException('Chamado não encontrado');
     if (user.role !== 'ADMIN' && ticket.requesterId !== user.userId) {
@@ -411,7 +413,7 @@ export class TicketsService {
     });
   }
 
-  async assign(id: string, assignedTo: string, user: AuthUser) {
+  async assign(id: number, assignedTo: number, user: AuthUser) {
     const ticket = await this.repo.findById(id);
     if (!ticket) throw new NotFoundException('Chamado não encontrado');
     this.ensureCanView(ticket, user);
@@ -433,7 +435,7 @@ export class TicketsService {
     return this.repo.assign(id, assignedTo, ticket.firstResponseAt == null);
   }
 
-  async addComment(id: string, body: string, user: AuthUser) {
+  async addComment(id: number, body: string, user: AuthUser) {
     const ticket = await this.repo.findById(id);
     if (!ticket) throw new NotFoundException('Chamado não encontrado');
     this.ensureCanView(ticket, user);
@@ -511,9 +513,9 @@ export class TicketsService {
 
   private isUnread(
     lastActivityAt: Date,
-    lastActivityBy: string | null,
+    lastActivityBy: number | null,
     lastSeenAt: Date | undefined,
-    userId: string,
+    userId: number,
   ): boolean {
     if (!lastActivityBy || lastActivityBy === userId) return false;
     if (!lastSeenAt) return true;
@@ -521,7 +523,7 @@ export class TicketsService {
   }
 
   private ensureCanView(
-    ticket: { requesterId: string; executorDepartmentId: string | null },
+    ticket: { requesterId: number; executorDepartmentId: number | null },
     user: AuthUser,
   ): void {
     if (user.role === 'ADMIN') return; // ADMIN nunca é restrito.
