@@ -100,12 +100,6 @@ export class TicketsController {
     return this.tickets.assign(id, dto.assignedTo, user);
   }
 
-  @Patch(':id/approve')
-  @Roles('ADMIN')
-  approve(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
-    return this.tickets.approve(id, user);
-  }
-
   @Post(':id/comments')
   addComment(
     @Param('id', ParseUUIDPipe) id: string,
