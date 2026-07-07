@@ -18,7 +18,7 @@ export class TicketsRepository {
       orderBy: [{ createdAt: 'desc' }],
       skip,
       take,
-      include: { category: true, subcategory: true, detailOption: true },
+      include: { category: true, subcategory: true, detailOption: true, department: { select: { priorityWeight: true } } },
     });
   }
 
@@ -141,6 +141,7 @@ export class TicketsRepository {
           lastActivityAt: new Date(),
           lastActivityBy: input.requesterId,
         },
+        include: { department: { select: { priorityWeight: true } } },
       });
       await tx.ticketStatusHistory.create({
         data: {
@@ -172,6 +173,7 @@ export class TicketsRepository {
     toStatus: TicketStatus;
     changedBy: string;
     resolvedAt: Date | null;
+    firstResponseAt?: Date; // gravado só quando informado (1º IN_PROGRESS)
   }) {
     return this.prisma.$transaction(async (tx) => {
       const ticket = await tx.ticket.update({
@@ -179,9 +181,11 @@ export class TicketsRepository {
         data: {
           status: input.toStatus,
           resolvedAt: input.resolvedAt,
+          firstResponseAt: input.firstResponseAt,
           lastActivityAt: new Date(),
           lastActivityBy: input.changedBy,
         },
+        include: { department: { select: { priorityWeight: true } } },
       });
       await tx.ticketStatusHistory.create({
         data: {
@@ -244,6 +248,7 @@ export class TicketsRepository {
           lastActivityAt: new Date(),
           lastActivityBy: input.changedBy,
         },
+        include: { department: { select: { priorityWeight: true } } },
       });
       if (input.moveToOpen) {
         await tx.ticketStatusHistory.create({
@@ -259,8 +264,16 @@ export class TicketsRepository {
     });
   }
 
-  assign(id: string, assignedTo: string) {
-    return this.prisma.ticket.update({ where: { id }, data: { assignedTo } });
+  assign(id: string, assignedTo: string, setFirstResponse: boolean) {
+    return this.prisma.ticket.update({
+      where: { id },
+      data: {
+        assignedTo,
+        // Grava a 1ª resposta só se ainda não houver (o service decide passando o flag).
+        firstResponseAt: setFirstResponse ? new Date() : undefined,
+      },
+      include: { department: { select: { priorityWeight: true } } },
+    });
   }
 
   addComment(ticketId: string, authorId: string, body: string) {
