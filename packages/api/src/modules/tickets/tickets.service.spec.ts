@@ -255,6 +255,49 @@ test('create: a complexidade-base do detalhe tem precedência sobre a da subcate
   assert.equal(r.priority, 'PRIO(CRITICAL,3)');
 });
 
+// ---- create (originLocation — captura só de solicitante kiosk / Plano 4 totem) ----
+const kiosk: AuthUser = { userId: 'kiosk1', email: 'kiosk@x', role: 'USER', mustChangePassword: false, departmentId: null, isKiosk: true };
+
+test('create: kiosk SEM originLocation rejeita com 400', async () => {
+  const svc = makeService({ subcategory: subRedefinicao, assignee: { id: 'kiosk1', departmentId: 'dep1' } });
+  await assert.rejects(
+    () => svc.create({ categoryId: 'c1', subcategoryId: 's1', departmentId: 'dep1' } as any, kiosk),
+    (e) => e instanceof BadRequestException,
+  );
+});
+
+test('create: kiosk com originLocation em branco (só espaços) rejeita com 400', async () => {
+  const svc = makeService({ subcategory: subRedefinicao, assignee: { id: 'kiosk1', departmentId: 'dep1' } });
+  await assert.rejects(
+    () => svc.create(
+      { categoryId: 'c1', subcategoryId: 's1', departmentId: 'dep1', originLocation: '   ' } as any,
+      kiosk,
+    ),
+    (e) => e instanceof BadRequestException,
+  );
+});
+
+test('create: kiosk com originLocation passa o valor (trimado) ao repo', async () => {
+  const svc = makeService({
+    subcategory: subRedefinicao,
+    assignee: { id: 'kiosk1', departmentId: 'dep1' }, // users.findById(user.userId) — USER exige setor
+  });
+  const r: any = await svc.create(
+    { categoryId: 'c1', subcategoryId: 's1', departmentId: 'dep1', originLocation: '  Recepção  ' } as any,
+    kiosk,
+  );
+  assert.equal(r.originLocation, 'Recepção');
+});
+
+test('create: usuário comum enviando originLocation é ignorado (gravado como null)', async () => {
+  const svc = makeService({ subcategory: subRedefinicao });
+  const r: any = await svc.create(
+    { categoryId: 'c1', subcategoryId: 's1', departmentId: 'dep1', originLocation: 'Recepção' } as any,
+    admin,
+  );
+  assert.equal(r.originLocation, null);
+});
+
 // ---- addComment (bloqueio em chamado encerrado) ----
 test('addComment: ADMIN não pode comentar em chamado RESOLVED', async () => {
   const svc = makeService({ ticket: { id: 't1', requesterId: 'req1', status: 'RESOLVED' } });

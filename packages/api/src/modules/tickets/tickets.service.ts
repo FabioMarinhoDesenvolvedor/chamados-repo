@@ -129,6 +129,14 @@ export class TicketsService {
     // Aprovação removida (spec sla-dois-tempos-automatico): todo chamado nasce OPEN.
     const status: TicketStatus = 'OPEN';
 
+    // originLocation: só de solicitante kiosk (totem). Usuário comum não define origem.
+    let originLocation: string | null = null;
+    if (user.isKiosk) {
+      const loc = dto.originLocation?.trim();
+      if (!loc) throw new BadRequestException('Informe o local/sala de origem');
+      originLocation = loc;
+    }
+
     // Padrão outbox: o id é gerado aqui para montar o link do e-mail ANTES do insert e
     // enfileirar a notificação na MESMA transação do chamado (createWithHistory).
     let notification:
@@ -147,7 +155,7 @@ export class TicketsService {
           requesterDepartmentName: department.name,
           priority,
           description: dto.description ?? null,
-          originLocation: null,
+          originLocation,
           createdAt: new Date(),
           appUrl: this.config.get<string>('APP_URL') ?? null,
         },
@@ -166,6 +174,7 @@ export class TicketsService {
       departmentId,
       executorDepartmentId,
       requesterId,
+      originLocation,
       notification,
     });
     // Retorna já projetado (SLA derivado + projeção por papel), como update()/updateStatus(),

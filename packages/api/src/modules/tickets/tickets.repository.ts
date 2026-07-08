@@ -116,6 +116,7 @@ export class TicketsRepository {
     departmentId: number;
     executorDepartmentId: number;
     requesterId: number;
+    originLocation: string | null;
     notification?: {
       toEmail: string;
       emailInput: Omit<Parameters<typeof buildTicketEmail>[0], 'ticketId'>;
@@ -140,6 +141,7 @@ export class TicketsRepository {
           department: { connect: { id: input.departmentId } },
           executorDepartment: { connect: { id: input.executorDepartmentId } },
           requester: { connect: { id: input.requesterId } },
+          originLocation: input.originLocation,
           lastActivityAt: new Date(),
           lastActivityBy: input.requesterId,
         },

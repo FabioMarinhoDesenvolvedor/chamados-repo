@@ -33,4 +33,11 @@ export class CreateTicketDto {
   @Type(() => Number)
   @IsInt()
   requesterId?: number;
+
+  // Local/sala de origem — obrigatorio quando o solicitante e kiosk (totem);
+  // ignorado (gravado como null) para usuarios comuns.
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  originLocation?: string;
 }
