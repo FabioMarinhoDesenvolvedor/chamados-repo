@@ -67,8 +67,13 @@ export function NewTicketPage() {
   // OPERATOR não abre chamados (só atende) — bloqueia o acesso direto à rota.
   const blockOperator = user?.role === 'OPERATOR';
 
-  const { data: categories, isLoading, isError, refetch } = useCategories();
-  const { data: departments } = useDepartments();
+  const { data: categories, isLoading: categoriesLoading, isError: categoriesError, refetch: refetchCategories } = useCategories();
+  const {
+    data: departments,
+    isLoading: departmentsLoading,
+    isError: departmentsError,
+    refetch: refetchDepartments,
+  } = useDepartments();
   const { data: users } = useUsers(isAdmin);
   const createTicket = useCreateTicket();
   const uploadAttachments = useUploadAttachments();
@@ -84,6 +89,14 @@ export function NewTicketPage() {
   const [requesterId, setRequesterId] = useState<number | ''>('');
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState('');
+
+  // Passo 0 depende de categorias E setores — qualquer um carregando/errando bloqueia o passo.
+  const isLoading = categoriesLoading || departmentsLoading;
+  const isError = categoriesError || departmentsError;
+  function refetch() {
+    if (categoriesError) refetchCategories();
+    if (departmentsError) refetchDepartments();
+  }
 
   const blocks = useMemo(
     () => (categories && departments ? buildBlocks(categories, departments) : []),
@@ -183,7 +196,7 @@ export function NewTicketPage() {
             <ChevronRight className="h-4 w-4 text-gray-400" />
             <button
               type="button"
-              onClick={() => { setCategory(null); setSubcategory(null); setDetailOption(null); setDetailSkipped(false); }}
+              onClick={backToCategories}
               className={category ? 'text-grena hover:underline' : 'font-medium text-gray-800'}
             >
               {block.name}
