@@ -6,6 +6,7 @@ import { AppShell } from '@/layouts/AppShell';
 import { LoginPage } from '@/pages/LoginPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { NewTicketPage } from '@/pages/NewTicketPage';
+import { TotemPage } from '@/pages/TotemPage';
 import { TicketDetailPage } from '@/pages/TicketDetailPage';
 import { ChangePasswordPage } from '@/pages/ChangePasswordPage';
 import { UsersPage } from '@/pages/admin/UsersPage';
@@ -27,6 +28,7 @@ export function App() {
       <Toaster />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/totem" element={<TotemPage />} />
         <Route path="/" element={<Private><DashboardPage /></Private>} />
         <Route path="/tickets/new" element={<Private><NewTicketPage /></Private>} />
         <Route path="/tickets/:id" element={<Private><TicketDetailPage /></Private>} />

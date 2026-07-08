@@ -3,7 +3,6 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ChevronRight } from 'lucide-react';
 import {
   CategoryWithSubcategories,
-  Department,
   TicketDetailOption,
   TicketSubcategory,
 } from '@chamados/shared';
@@ -21,20 +20,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { CategoryIcon } from '@/components/CategoryIcon';
 import { AttachmentInput } from '@/components/AttachmentInput';
 import { departmentIcon } from '@/lib/department-icon';
-
-// Blocos de setor = setores executores que têm ao menos uma categoria. Data-driven.
-function buildBlocks(
-  categories: CategoryWithSubcategories[],
-  departments: Department[],
-): { id: number; name: string }[] {
-  const withDept = new Set(
-    categories.map((c) => c.departmentId).filter((d): d is number => d != null),
-  );
-  return departments
-    .filter((d) => withDept.has(d.id))
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .map((d) => ({ id: d.id, name: d.name }));
-}
+import { buildBlocks } from '@/lib/blocks';
 
 // Card de bloco/sub-bloco: ícone (lucide) + rótulo, layout idêntico entre todos.
 function BlockCard({
