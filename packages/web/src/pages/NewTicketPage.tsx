@@ -21,22 +21,28 @@ import { CategoryIcon } from '@/components/CategoryIcon';
 import { AttachmentInput } from '@/components/AttachmentInput';
 import { departmentIcon } from '@/lib/department-icon';
 import { buildBlocks } from '@/lib/blocks';
+import { cn } from '@/lib/cn';
 
 // Card de bloco/sub-bloco: ícone (lucide) + rótulo, layout idêntico entre todos.
 function BlockCard({
   icon,
   label,
   onClick,
+  className,
 }: {
   icon: string;
   label: string;
   onClick: () => void;
+  className?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex min-h-[120px] flex-col items-center justify-center gap-3 rounded-lg border border-gray-200 bg-white p-5 text-center shadow-sm transition hover:border-grena hover:bg-grena/5 hover:shadow-grena focus:outline-none focus:ring-2 focus:ring-grena/40"
+      className={cn(
+        'flex min-h-[120px] flex-col items-center justify-center gap-3 rounded-lg border border-gray-200 bg-white p-5 text-center shadow-sm transition hover:border-grena hover:bg-grena/5 hover:shadow-grena focus:outline-none focus:ring-2 focus:ring-grena/40',
+        className,
+      )}
     >
       <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-grena/10 text-grena">
         <CategoryIcon name={icon} className="h-6 w-6" />
@@ -237,10 +243,18 @@ export function NewTicketPage() {
           </Button>
         </Card>
       ) : !block ? (
-        // Passo 0: macro-bloco (setor) — data-driven
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        // Passo 0: macro-bloco (setor) — data-driven. Flex centralizado (não grid): hoje só TI
+        // está no ar, e um único card num grid de 3 colunas encostava à esquerda "como se
+        // faltasse algo". Centralizado, funciona bem com 1, 2 ou vários setores.
+        <div className="flex flex-wrap justify-center gap-3">
           {blocks.map((b) => (
-            <BlockCard key={b.id} icon={departmentIcon(b.name)} label={b.name} onClick={() => setBlock(b)} />
+            <BlockCard
+              key={b.id}
+              icon={departmentIcon(b.name)}
+              label={b.name}
+              className="w-full sm:w-60"
+              onClick={() => setBlock(b)}
+            />
           ))}
         </div>
       ) : !category ? (

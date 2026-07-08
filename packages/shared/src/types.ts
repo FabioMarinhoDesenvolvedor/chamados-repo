@@ -97,6 +97,9 @@ export interface Ticket {
   updatedAt: string;
   resolvedAt: string | null;
   rating: number | null;
+  // Derivado (nao expoe a nota): indica se o chamado ja foi avaliado. Permite ao solicitante
+  // avaliar um chamado encerrado direto pelo admin sem revelar a nota (que segue so p/ admin).
+  rated?: boolean;
   closedAt: string | null;
   slaStartedAt: string | null;
   // Primeira resposta (assumir OU ir para IN_PROGRESS). Nulo enquanto nao respondido.

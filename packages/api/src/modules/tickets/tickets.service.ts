@@ -401,25 +401,35 @@ export class TicketsService {
     return this.hideByRole(this.withSla(updated), user);
   }
 
-  // Encerramento pelo solicitante (ou admin): só a partir de RESOLVED.
-  // OPERATOR resolve o chamado, mas a confirmação/conclusão é do solicitante ou do ADMIN.
+  // Conclusão/avaliação pelo solicitante (ou admin):
+  // - RESOLVED: confirma a conclusão (vai para CLOSED) com avaliação opcional — fluxo normal.
+  // - CLOSED sem nota: chamado encerrado direto pelo admin; o solicitante ainda pode avaliar
+  //   UMA vez (a nota exige valor, aqui não há conclusão a fazer — só registrar a avaliação).
+  // OPERATOR resolve o chamado, mas a confirmação/avaliação é do solicitante ou do ADMIN.
   async close(id: number, rating: number | undefined, user: AuthUser) {
     const ticket = await this.repo.findById(id);
     if (!ticket) throw new NotFoundException('Chamado não encontrado');
     if (user.role !== 'ADMIN' && ticket.requesterId !== user.userId) {
       throw new ForbiddenException('Apenas o solicitante ou um administrador pode concluir o chamado');
     }
-    if (ticket.status !== 'RESOLVED') {
-      throw new BadRequestException(
-        'Só é possível concluir um chamado já resolvido pela TI',
-      );
+    if (ticket.status === 'RESOLVED') {
+      return this.repo.closeWithRating({
+        id,
+        fromStatus: ticket.status,
+        changedBy: user.userId,
+        rating: rating ?? null,
+      });
     }
-    return this.repo.closeWithRating({
-      id,
-      fromStatus: ticket.status,
-      changedBy: user.userId,
-      rating: rating ?? null,
-    });
+    if (ticket.status === 'CLOSED') {
+      if (ticket.rating != null) {
+        throw new BadRequestException('Este chamado já foi avaliado.');
+      }
+      if (rating == null) {
+        throw new BadRequestException('Informe uma avaliação de 1 a 5 estrelas.');
+      }
+      return this.repo.setRating(id, rating);
+    }
+    throw new BadRequestException('Só é possível avaliar/concluir um chamado já resolvido pela TI.');
   }
 
   async assign(id: number, assignedTo: number, user: AuthUser) {
@@ -512,12 +522,15 @@ export class TicketsService {
       responseBreached?: boolean;
       resolutionBreached?: boolean;
     },
-  >(t: T, user: AuthUser): T {
+  >(t: T, user: AuthUser): T & { rated: boolean } {
+    // `rated` é derivado (só booleano, nunca a nota) e sobrevive à ocultação: o solicitante
+    // precisa saber se já avaliou, sem ver a nota (que segue restrita ao admin).
+    const rated = t.rating != null;
     if (user.role === 'USER') {
-      return { ...t, priority: null, complexity: null, rating: null, responseBreached: undefined, resolutionBreached: undefined };
+      return { ...t, rated, priority: null, complexity: null, rating: null, responseBreached: undefined, resolutionBreached: undefined };
     }
-    if (user.role === 'OPERATOR') return { ...t, rating: null };
-    return t;
+    if (user.role === 'OPERATOR') return { ...t, rated, rating: null };
+    return { ...t, rated };
   }
 
   private isUnread(

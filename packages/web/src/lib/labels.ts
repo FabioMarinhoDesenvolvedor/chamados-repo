@@ -46,6 +46,16 @@ export const ROLE_LABEL: Record<Role, string> = {
   OPERATOR: 'Operador',
 };
 
+// Status que o staff define manualmente, tanto no detalhe quanto no atalho do dashboard.
+// OPEN/TRIAGE são automáticos (nunca escolhidos à mão); ADMIN pode CONCLUIR (CLOSED), OPERATOR não.
+// O status atual sempre entra na lista para não sumir do seletor (ex.: um chamado OPEN/CLOSED).
+export function staffStatusOptions(isAdmin: boolean, current: TicketStatus): TicketStatus[] {
+  const base: TicketStatus[] = isAdmin
+    ? ['IN_PROGRESS', 'RESOLVED', 'CLOSED']
+    : ['IN_PROGRESS', 'RESOLVED'];
+  return base.includes(current) ? base : [current, ...base];
+}
+
 // Helpers tolerantes a null (chamado em triagem ainda não tem prioridade/complexidade).
 export function priorityLabel(p: Priority | null): string {
   return p ? PRIORITY_LABEL[p] : 'Em triagem';

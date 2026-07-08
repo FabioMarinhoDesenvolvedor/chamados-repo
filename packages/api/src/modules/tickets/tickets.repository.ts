@@ -236,6 +236,12 @@ export class TicketsRepository {
     });
   }
 
+  // Avaliação de um chamado já encerrado (CLOSED) pelo solicitante: registra só a nota,
+  // sem mudar status nem criar histórico (não é uma conclusão — o chamado já está fechado).
+  setRating(id: number, rating: number) {
+    return this.prisma.ticket.update({ where: { id }, data: { rating } });
+  }
+
   applyTriage(input: {
     id: number;
     complexity: Complexity | null;

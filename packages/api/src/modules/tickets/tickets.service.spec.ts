@@ -31,6 +31,7 @@ function makeService(over: {
     // os testes de captura de 1ª resposta sobrescrevem repo.assign diretamente.
     assign: async (id: string, assignedTo: string, _setFirst: boolean) => ({ id, assignedTo }),
     closeWithRating: async (args: unknown) => args,
+    setRating: async (id: string, rating: number) => ({ id, rating }),
     createWithHistory: async (input: Record<string, unknown>) => ({
       ...slaProjectionDefaults,
       id: 'new',
@@ -125,6 +126,22 @@ test('close: o solicitante pode concluir um chamado RESOLVED', async () => {
   const svc = makeService({ ticket: { id: 't1', requesterId: 'req1', status: 'RESOLVED' } });
   const r = await svc.close('t1', 5, requester);
   assert.equal((r as any).id, 't1');
+});
+
+test('close: solicitante avalia um chamado CLOSED ainda sem nota (encerrado direto pelo admin)', async () => {
+  const svc = makeService({ ticket: { id: 't1', requesterId: 'req1', status: 'CLOSED', rating: null } });
+  const r = await svc.close('t1', 4, requester);
+  assert.deepEqual(r, { id: 't1', rating: 4 });
+});
+
+test('close: chamado CLOSED já avaliado não pode ser avaliado de novo', async () => {
+  const svc = makeService({ ticket: { id: 't1', requesterId: 'req1', status: 'CLOSED', rating: 5 } });
+  await assert.rejects(() => svc.close('t1', 3, requester), (e) => e instanceof BadRequestException);
+});
+
+test('close: avaliar um chamado CLOSED exige a nota', async () => {
+  const svc = makeService({ ticket: { id: 't1', requesterId: 'req1', status: 'CLOSED', rating: null } });
+  await assert.rejects(() => svc.close('t1', undefined, requester), (e) => e instanceof BadRequestException);
 });
 
 // ---- create (categorização guiada) ----
@@ -318,11 +335,11 @@ test('addComment: chamado em andamento aceita comentário', async () => {
 // ---- hideByRole (projeção por papel) ----
 const ticketFields = { priority: 'HIGH' as const, complexity: 'CRITICAL' as const, rating: 4 };
 
-test('hideByRole: USER não vê prioridade/complexidade/nota/breach', () => {
+test('hideByRole: USER não vê prioridade/complexidade/nota/breach, mas sabe se já avaliou (rated)', () => {
   const svc = makeService({});
   const r = (svc as any).hideByRole({ ...ticketFields }, requester);
   assert.deepEqual(r, {
-    priority: null, complexity: null, rating: null,
+    priority: null, complexity: null, rating: null, rated: true,
     responseBreached: undefined, resolutionBreached: undefined,
   });
 });
@@ -330,13 +347,13 @@ test('hideByRole: USER não vê prioridade/complexidade/nota/breach', () => {
 test('hideByRole: OPERATOR vê prioridade/complexidade, mas NÃO a nota', () => {
   const svc = makeService({});
   const r = (svc as any).hideByRole({ ...ticketFields }, operator);
-  assert.deepEqual(r, { priority: 'HIGH', complexity: 'CRITICAL', rating: null });
+  assert.deepEqual(r, { priority: 'HIGH', complexity: 'CRITICAL', rating: null, rated: true });
 });
 
 test('hideByRole: ADMIN vê tudo', () => {
   const svc = makeService({});
   const r = (svc as any).hideByRole({ ...ticketFields }, admin);
-  assert.deepEqual(r, ticketFields);
+  assert.deepEqual(r, { ...ticketFields, rated: true });
 });
 
 // ---- create (roteamento categoria→setor executor + aprovação) ----

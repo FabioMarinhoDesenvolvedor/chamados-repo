@@ -4,7 +4,9 @@ import { Printer } from 'lucide-react';
 import { ActivityLogItem, ReportQuery, UserActivityReport } from '@chamados/shared';
 import { useUsers } from '@/features/users/api';
 import { useCategories } from '@/features/categories/api';
+import { useDepartments } from '@/features/departments/api';
 import { useUserActivityReport } from '@/features/reports/api';
+import { visibleCategories } from '@/lib/blocks';
 import { apiMessage } from '@/lib/api';
 import { toast } from '@/lib/toast-store';
 import { Button } from '@/components/ui/button';
@@ -119,6 +121,7 @@ function ReportBody({ report }: { report: UserActivityReport }) {
 export function ReportsPage() {
   const { data: users } = useUsers(true);
   const { data: categories } = useCategories();
+  const { data: departments } = useDepartments();
   const [userId, setUserId] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [from, setFrom] = useState('');
@@ -176,7 +179,7 @@ export function ReportsPage() {
             <Label htmlFor="category">Categoria</Label>
             <Select id="category" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
               <option value="">Todas as categorias</option>
-              {categories?.map((c) => (
+              {visibleCategories(categories ?? [], departments ?? []).map((c) => (
                 <option key={c.id} value={String(c.id)}>
                   {c.name}
                 </option>

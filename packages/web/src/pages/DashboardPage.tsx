@@ -18,11 +18,10 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { StatusBadge } from '@/components/StatusBadge';
 import { KpiCard } from '@/components/KpiCard';
-import { STATUS_LABEL } from '@/lib/labels';
+import { STATUS_LABEL, staffStatusOptions } from '@/lib/labels';
+import { visibleCategories } from '@/lib/blocks';
 
 const PAGE_SIZE = 20;
-// Status que dá para definir rápido pelo dashboard (resolver coisas simples sem abrir o chamado).
-const QUICK_STATUSES: TicketStatus[] = ['OPEN', 'IN_PROGRESS', 'RESOLVED'];
 
 // Ações de atendimento direto na lista (só staff): mudar status e definir responsável.
 function TicketActions({
@@ -38,10 +37,9 @@ function TicketActions({
 }) {
   const updateStatus = useUpdateStatus(ticket.id);
   const assignTicket = useAssignTicket(ticket.id);
-  // Garante que o status atual apareça no seletor mesmo se não for um dos "rápidos" (ex.: OPEN/CLOSED).
-  const statusOptions = QUICK_STATUSES.includes(ticket.status)
-    ? QUICK_STATUSES
-    : [ticket.status, ...QUICK_STATUSES];
+  // Mesmas opções do detalhe: o ADM leva o chamado até "Concluído" direto da lista (atalho
+  // prático) sem abrir a página; o status atual sempre aparece para não sumir do seletor.
+  const statusOptions = staffStatusOptions(isAdmin, ticket.status);
   const busy = updateStatus.isPending || assignTicket.isPending;
 
   return (
@@ -194,7 +192,7 @@ export function DashboardPage() {
             onChange={(e) => changeCategory(e.target.value ? Number(e.target.value) : '')}
           >
             <option value="">Todas as categorias</option>
-            {categories?.map((c) => (
+            {visibleCategories(categories ?? [], departments ?? []).map((c) => (
               <option key={c.id} value={String(c.id)}>
                 {c.name}
               </option>

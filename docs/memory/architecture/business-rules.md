@@ -90,19 +90,24 @@ Recalcular prioridade quando complexity ou departamento mudarem.
   `ticket_read_state` em architecture/database.md. Ver decisão: decisions/notificacao-polling.
 - **Encerramento em duas etapas**: a TI marca `RESOLVED` ("Resolvido — aguardando
   confirmação"); o **solicitante** confirma e avalia, indo para `CLOSED` ("Concluído")
-  via `PATCH /tickets/:id/close` (acessível ao solicitante ou admin; só a partir de
-  RESOLVED). O admin pode forçar `CLOSED` pelo seletor de status (sem avaliação).
+  via `PATCH /tickets/:id/close` (acessível ao solicitante ou admin; a partir de RESOLVED
+  **ou** de um CLOSED ainda sem nota). O admin pode forçar `CLOSED` pelo seletor de status
+  (sem avaliação); nesse caso o **solicitante ainda pode avaliar uma vez** o chamado concluído.
   `RESOLVED` e `CLOSED` são estágios DISTINTOS (não duplicados) — decisão aprovada.
 - **Controle de status unificado**: a mudança de status (incl. resolver) é feita por UM
-  único seletor no detalhe (sem botão "marcar como resolvido" separado). As opções manuais
-  são `IN_PROGRESS`, `RESOLVED` e, só p/ admin, `CLOSED` (TRIAGE/OPEN são automáticos da
-  triagem; o status atual sempre aparece). No dashboard, staff alterna `RESOLVED ↔ IN_PROGRESS`
-  direto na lista (atalho "Resolver"/"Reabrir").
+  único seletor — **mesmas opções no detalhe E no atalho do dashboard** (helper único
+  `staffStatusOptions` em `web/src/lib/labels.ts`, DRY). As opções manuais são `IN_PROGRESS`,
+  `RESOLVED` e, só p/ admin, `CLOSED` (TRIAGE/OPEN são automáticos; o status atual sempre
+  aparece). No dashboard o staff muda o status direto na lista (coluna "Ação"), sem abrir o
+  chamado — inclusive o ADM levando até "Concluído"; a página do chamado segue p/ comentários.
 - **Comentários encerrados**: ao atingir `RESOLVED` ou `CLOSED`, NINGUÉM comenta (nem admin) —
   validado no backend (`addComment` → 403) e escondido no front. Para retomar, a equipe reabre
   o chamado (volta para `IN_PROGRESS`) antes de comentar.
 - **Avaliação**: estrelas 1–5, opcional, salva em `tickets.rating`. Visível só ao admin
-  no detalhe do chamado; não entra na timeline pública.
+  no detalhe do chamado; não entra na timeline pública. O solicitante avalia ao confirmar um
+  `RESOLVED` **ou**, se o admin encerrou direto, avaliando o `CLOSED` **uma vez** enquanto
+  não houver nota. A projeção expõe o booleano derivado **`rated`** (nunca a nota) para o
+  front saber se o card de avaliação ainda deve aparecer — a nota em si segue oculta ao USER.
 
 ## SLA (dois relógios: resposta + conclusão)
 Centralizado em `SlaService` / `sla.matrix.ts` (DRY, fonte única, nunca calculado no banco).

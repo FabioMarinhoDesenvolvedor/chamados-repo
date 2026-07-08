@@ -29,7 +29,7 @@ import { CategoryIcon } from '@/components/CategoryIcon';
 import { Spinner } from '@/components/ui/spinner';
 import { AttachmentGallery } from '@/components/AttachmentGallery';
 import { AttachmentInput } from '@/components/AttachmentInput';
-import { STATUS_LABEL, complexityLabel } from '@/lib/labels';
+import { STATUS_LABEL, complexityLabel, staffStatusOptions } from '@/lib/labels';
 
 const DONE: TicketStatus[] = ['RESOLVED', 'CLOSED'];
 
@@ -67,14 +67,9 @@ export function TicketDetailPage() {
   // Possíveis responsáveis: equipe de atendimento (ADMIN ou OPERATOR).
   const staffUsers = allUsers?.filter((u) => isStaffRole(u.role)) ?? [];
 
-  // Status manualmente selecionáveis. OPEN nasce automático; mantém os dois estágios do
-  // encerramento: RESOLVED (aguarda confirmação) e CLOSED (admin encerra).
-  const STAFF_STATUS_OPTIONS: TicketStatus[] = isAdmin
-    ? ['IN_PROGRESS', 'RESOLVED', 'CLOSED']
-    : ['IN_PROGRESS', 'RESOLVED'];
-  const statusOptions = STAFF_STATUS_OPTIONS.includes(ticket.status)
-    ? STAFF_STATUS_OPTIONS
-    : [ticket.status, ...STAFF_STATUS_OPTIONS];
+  // Status manualmente selecionáveis (mesma regra do atalho no dashboard): ADMIN pode
+  // CONCLUIR (CLOSED), OPERATOR não; o status atual sempre aparece no seletor.
+  const statusOptions = staffStatusOptions(isAdmin, ticket.status);
 
   const feed: FeedItem[] = [
     ...ticket.history.map((h) => ({
@@ -255,24 +250,49 @@ export function TicketDetailPage() {
         </Card>
       )}
 
-      {!isStaff && ticket.status === 'RESOLVED' && (
-        <Card className="p-6">
-          <h3 className="mb-1 text-sm font-semibold text-grena">Confirmar conclusão</h3>
-          <p className="mb-4 text-sm text-gray-600">
-            A TI marcou seu chamado como resolvido. Avalie o atendimento (opcional) e conclua.
-          </p>
-          <div className="mb-4">
-            <Label>Sua avaliação</Label>
-            <StarRating value={rating} onChange={setRating} />
-          </div>
-          <Button
-            loading={closeTicket.isPending}
-            onClick={() => closeTicket.mutate({ rating: rating || undefined })}
-          >
-            {closeTicket.isPending ? 'Concluindo...' : 'Concluir chamado'}
-          </Button>
-        </Card>
-      )}
+      {/* Avaliação do solicitante:
+          - RESOLVED: confirma a conclusão (vai p/ CLOSED) e avalia (opcional).
+          - CLOSED ainda sem nota: o admin encerrou direto; o solicitante ainda pode avaliar
+            (uma vez). `rated` é o sinal derivado (não expõe a nota, que é só do admin). */}
+      {!isStaff &&
+        (ticket.status === 'RESOLVED' ||
+          (ticket.status === 'CLOSED' && ticket.rated === false)) && (
+          <Card className="p-6">
+            {ticket.status === 'RESOLVED' ? (
+              <>
+                <h3 className="mb-1 text-sm font-semibold text-grena">Confirmar conclusão</h3>
+                <p className="mb-4 text-sm text-gray-600">
+                  A TI marcou seu chamado como resolvido. Avalie o atendimento (opcional) e conclua.
+                </p>
+              </>
+            ) : (
+              <>
+                <h3 className="mb-1 text-sm font-semibold text-grena">Avaliar atendimento</h3>
+                <p className="mb-4 text-sm text-gray-600">
+                  Seu chamado foi concluído pela TI. Que tal avaliar como foi o atendimento?
+                </p>
+              </>
+            )}
+            <div className="mb-4">
+              <Label>Sua avaliação</Label>
+              <StarRating value={rating} onChange={setRating} />
+            </div>
+            <Button
+              loading={closeTicket.isPending}
+              // Concluir (RESOLVED) permite nota opcional; avaliar um já concluído exige a nota.
+              disabled={ticket.status === 'CLOSED' && rating === 0}
+              onClick={() => closeTicket.mutate({ rating: rating || undefined })}
+            >
+              {ticket.status === 'RESOLVED'
+                ? closeTicket.isPending
+                  ? 'Concluindo...'
+                  : 'Concluir chamado'
+                : closeTicket.isPending
+                  ? 'Enviando...'
+                  : 'Enviar avaliação'}
+            </Button>
+          </Card>
+        )}
 
       <Card className="p-6">
         <h3 className="mb-4 text-sm font-semibold text-grena">Acompanhamento</h3>

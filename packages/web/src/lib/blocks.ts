@@ -6,6 +6,19 @@ import { CategoryWithSubcategories, Department } from '@chamados/shared';
 // (decisão 2026-07-08: TI é o core e volta ao fluxo; Manutenção/Limpeza ficam de lado por ora.)
 export const PARKED_DEPARTMENTS = ['Manutenção', 'Limpeza'];
 
+// Categorias visíveis nos filtros (dashboard/relatórios): as de setores NÃO estacionados.
+// Sem isto, os dropdowns de categoria puxam também as de Manutenção/Limpeza (guardados),
+// poluindo o filtro — hoje só TI está no ar. Reusa a MESMA lista PARKED_DEPARTMENTS.
+export function visibleCategories<T extends { departmentId: number | null }>(
+  categories: T[],
+  departments: { id: number; name: string }[],
+): T[] {
+  const parkedIds = new Set(
+    departments.filter((d) => PARKED_DEPARTMENTS.includes(d.name)).map((d) => d.id),
+  );
+  return categories.filter((c) => c.departmentId == null || !parkedIds.has(c.departmentId));
+}
+
 // Blocos de setor = setores executores que têm ao menos uma categoria e NÃO estão estacionados.
 // Data-driven. `exclude` permite que um fluxo (ex.: totem) esconda um setor específico (ex.: TI,
 // que atende o próprio totem e não deveria abrir chamado contra si mesmo).
