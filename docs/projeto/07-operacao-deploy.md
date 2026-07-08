@@ -112,10 +112,73 @@ Checklist de produção: HTTPS; `JWT_SECRET` forte; senha do Postgres forte; `AT
 `BACKUP_DIR` em armazenamento externo/seguro; senha-mestra do cofre guardada à parte; processo da
 API supervisionado (PM2/systemd/serviço) para o cron de backup rodar às 02:00.
 
+## Deploy de produção — release 2026-07-07 (SLA de dois tempos + IDs inteiros + fluxo multi-setorial)
+
+> **Execução é do Fabio, no srv-alv01** (bare-metal Debian 12, systemd, sem Docker em produção).
+> Este runbook é a ordem exata; o código já está na `main` (origin atualizado).
+
+**O que esta release entrega:** SLA de dois tempos (resposta + conclusão), **IDs inteiros
+sequenciais** (UUID → Int em todas as tabelas), fluxo guiado com **passo de setor** e fila por setor,
+notificação por e-mail (outbox), e o dado de referência (15 setores + árvore de categorias).
+
+### ⚠️ Atenção crítica — migrations consolidadas
+Esta release **substituiu todo o histórico de migrations** por um baseline único
+(`20260707130000_init`) + uma migration de dados de referência (`20260707130100_seed_referencia`).
+Consequência para o `_prisma_migrations` do banco de produção:
+
+- **Caso A — banco de prod nunca migrado (fresco/vazio):** `db:deploy` aplica as 2 migrations
+  limpo. Segue o passo a passo normal abaixo.
+- **Caso B — banco de prod com o histórico ANTIGO (UUID) já registrado:** `db:deploy` **falha**
+  (`migrations recorded in the database but not found locally`). Como **não há dado real a
+  preservar** (decisão de design — nada relevante foi deployado), a resolução é um **reset total**:
+  `npx prisma migrate reset --force` (dropa tudo, aplica as 2 migrations). **É destrutivo —
+  confirme que prod não tem dado a preservar antes.** Faça um backup (`POST /backup/run` ou
+  `pg_dump`) antes, por garantia.
+
+Descobrir o caso: `npx prisma migrate status` no servidor (aponta migrations "recorded but not
+found locally" = Caso B).
+
+### Passos (no srv-alv01)
+```bash
+git pull origin main
+npm ci                                   # instala deps novas (nodemailer, @nestjs/schedule) já no package.json
+
+# 1) Configurar envs de produção em packages/api/.env:
+#    DATABASE_URL (prod), JWT_SECRET forte, APP_URL (ex.: https://chamados.juventus.com.br),
+#    SMTP_HOST/PORT/USER/PASS/FROM (sem SMTP_HOST => e-mail em STUB, só loga).
+
+npm run db:generate -w @chamados/api     # gera o Prisma Client (offline)
+
+# 2) Aplicar o schema + dado de referência (escolher conforme o caso acima):
+npm run db:deploy -w @chamados/api       # Caso A (banco fresco)
+#   OU, Caso B (histórico antigo, sem dado):  npx prisma migrate reset --force
+#   (o reset já roda o seed de DEV; em prod prefira db:deploy + seed:admin — ver nota)
+
+npm run db:seed:admin -w @chamados/api   # cria/garante o admin de prod (ADMIN_EMAIL, default ti@juventus.com.br)
+                                         # senha definida no PRIMEIRO ACESSO (first-access)
+
+npm run build                            # shared → api → web (nesta ordem)
+
+# 3) Reiniciar o serviço e servir o front:
+sudo systemctl restart chamados-api      # (ajustar o nome real do unit)
+#    servir packages/web/dist/ pelo nginx/estático; garantir CORS_ORIGIN/APP_URL coerentes
+```
+
+> **Dado de referência (setores + categorias):** vem da migration `20260707130100_seed_referencia`
+> (aplicada por `db:deploy`/`reset`) — **não** depende do seed de dev. O `db:seed` (dev) cria só
+> admin/user de exemplo + chamados fake e **não deve rodar em produção**; em prod use `db:seed:admin`.
+
+### Smoke pós-deploy
+- Login do admin → primeiro acesso define a senha.
+- Abrir um chamado → **id inteiro sequencial** (1, 2, …); o fluxo mostra o **passo de setor**.
+- Se `SMTP_HOST` setado num setor com `notificationEmail`: e-mail chega com link `${APP_URL}/tickets/<n>`.
+- Operador de um setor só vê a fila do próprio setor ("Fila — <setor>").
+
 ## Runbook — problemas comuns
 
 | Sintoma | Causa provável | Ação |
 |---------|----------------|------|
+| `migrate deploy` falha: *migrations recorded in DB not found locally* | Histórico antigo no `_prisma_migrations` após o squash (Caso B) | Sem dado real: `prisma migrate reset --force` (backup antes). Ver "Deploy 2026-07-07". |
 | Upload/visualização de anexo retorna **423** | Cofre bloqueado | Admin desbloqueia no `VaultBanner` (`POST /vault/unlock`) |
 | Anexos "indisponíveis" após reiniciar API | Cofre voltou a LOCKED | Desbloquear de novo com a senha-mestra |
 | `prisma generate` falha com **EPERM** (Windows) | nest watch trava a DLL do engine | Parar todos os processos node, depois `generate` |
