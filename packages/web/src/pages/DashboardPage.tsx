@@ -12,6 +12,7 @@ import { useAuth } from '@/auth/auth-context';
 import { useAssignTicket, useTickets, useTicketStats, useUpdateStatus } from '@/features/tickets/api';
 import { useUsers } from '@/features/users/api';
 import { useCategories } from '@/features/categories/api';
+import { useDepartments } from '@/features/departments/api';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
@@ -105,6 +106,13 @@ export function DashboardPage() {
   // OPERATOR não abre chamados (só atende); USER e ADMIN sim.
   const canCreate = user?.role !== 'OPERATOR';
   const { data: categories } = useCategories();
+  // OPERATOR escopado por setor (departmentId): mostra "Fila — <setor>" no header.
+  // ADMIN é sempre global (nunca restrito), então mantém o título atual.
+  const { data: departments } = useDepartments();
+  const scopedDeptName =
+    user?.role === 'OPERATOR' && user.departmentId != null
+      ? departments?.find((d) => d.id === user.departmentId)?.name ?? null
+      : null;
 
   // 'ACTIVE' (padrão) = só não-encerrados; '' = todos; ou um status específico.
   const [status, setStatus] = useState<TicketStatus | '' | 'ACTIVE'>('ACTIVE');
@@ -140,7 +148,9 @@ export function DashboardPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-grena-dark">Chamados</h2>
+          <h2 className="text-2xl font-bold text-grena-dark">
+            {scopedDeptName ? `Fila — ${scopedDeptName}` : 'Chamados'}
+          </h2>
           <p className="text-sm text-gray-500">Acompanhe e gerencie os chamados</p>
         </div>
         {canCreate && (
