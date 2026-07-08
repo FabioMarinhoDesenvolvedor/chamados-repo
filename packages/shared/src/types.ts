@@ -162,6 +162,17 @@ export interface AuthResponse {
   user: UserPublic;
 }
 
+export interface CreateKioskTokenInput {
+  label: string;
+  departmentId: number;
+}
+
+export interface KioskTokenResponse {
+  token: string;
+  user: UserPublic;
+  expiresInDays: number;
+}
+
 // ---- Inputs ----
 export interface CreateTicketInput {
   // Categorizacao guiada (substitui o titulo livre como entrada principal).
@@ -174,6 +185,7 @@ export interface CreateTicketInput {
   departmentId: number;
   // Apenas ADMIN: abre o chamado em nome de outro usuario (solicitante).
   requesterId?: number;
+  originLocation?: string;
 }
 
 export interface UpdateTicketInput {

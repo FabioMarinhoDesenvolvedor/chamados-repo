@@ -28,6 +28,8 @@ export type {
   TicketDetailOption,
   LoginInput,
   AuthResponse,
+  CreateKioskTokenInput,
+  KioskTokenResponse,
   ChangePasswordInput,
   FirstAccessInput,
   CreateTicketInput,
