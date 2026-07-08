@@ -112,14 +112,15 @@ Checklist de produção: HTTPS; `JWT_SECRET` forte; senha do Postgres forte; `AT
 `BACKUP_DIR` em armazenamento externo/seguro; senha-mestra do cofre guardada à parte; processo da
 API supervisionado (PM2/systemd/serviço) para o cron de backup rodar às 02:00.
 
-## Deploy de produção — release 2026-07-07 (SLA de dois tempos + IDs inteiros + fluxo multi-setorial)
+## Deploy de produção — release 2026-07-08 (SLA + IDs inteiros + multi-setorial + totem)
 
 > **Execução é do Fabio, no srv-alv01** (bare-metal Debian 12, systemd, sem Docker em produção).
 > Este runbook é a ordem exata; o código já está na `main` (origin atualizado).
 
 **O que esta release entrega:** SLA de dois tempos (resposta + conclusão), **IDs inteiros
 sequenciais** (UUID → Int em todas as tabelas), fluxo guiado com **passo de setor** e fila por setor,
-notificação por e-mail (outbox), e o dado de referência (15 setores + árvore de categorias).
+notificação por e-mail (outbox), o **totem/kiosk** (Plano 4), e o dado de referência (15 setores +
+árvore de categorias de TI/Manutenção/Limpeza).
 
 ### ⚠️ Atenção crítica — migrations consolidadas
 Esta release **substituiu todo o histórico de migrations** por um baseline único
@@ -149,12 +150,14 @@ npm ci                                   # instala deps novas (nodemailer, @nest
 
 npm run db:generate -w @chamados/api     # gera o Prisma Client (offline)
 
-# 2) Aplicar o schema + dado de referência (escolher conforme o caso acima):
-npm run db:deploy -w @chamados/api       # Caso A (banco fresco)
-#   OU, Caso B (histórico antigo, sem dado):  npx prisma migrate reset --force
-#   (o reset já roda o seed de DEV; em prod prefira db:deploy + seed:admin — ver nota)
+# 2) Banco. COMO NÃO HÁ DADO A PRESERVAR, o comando à prova de erro (funciona tanto no
+#    Caso A quanto no B, sem o erro "migrations recorded not found") é o reset com --skip-seed:
+cd packages/api && npx prisma migrate reset --force --skip-seed && cd ../..
+#    - dropa tudo e aplica as 2 migrations (schema + setores/categorias de referência);
+#    - --skip-seed NÃO roda o seed de DEV (nada de usuários/chamados de exemplo em prod).
+#    (Alternativa, só se o banco for garantidamente fresco: npm run db:deploy -w @chamados/api)
 
-npm run db:seed:admin -w @chamados/api   # cria/garante o admin de prod (ADMIN_EMAIL, default ti@juventus.com.br)
+npm run db:seed:admin -w @chamados/api   # cria o admin de prod (ADMIN_EMAIL, default ti@juventus.com.br)
                                          # senha definida no PRIMEIRO ACESSO (first-access)
 
 npm run build                            # shared → api → web (nesta ordem)
