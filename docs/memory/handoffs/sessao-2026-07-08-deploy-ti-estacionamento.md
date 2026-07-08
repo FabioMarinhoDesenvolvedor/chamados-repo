@@ -48,14 +48,13 @@ pós-deploy**.
 - Builds `shared/api/web` limpos; testes da API **97/97** (antes do deploy).
 - Deploy em prod: serviço `active (running)`, "Nest application successfully started", SITE 200.
 - Web build limpo após o `PARKED_DEPARTMENTS`.
-- **PENDENTE de execução pelo Fabio no servidor** (comando entregue, ainda não confirmado que rodou):
-  `git pull` → `db:generate` → `npx prisma migrate deploy` (aplica a migration do TI, não-destrutivo)
-  → `npm run build` → `systemctl restart chamados.service`. Só depois disso o TI volta e Manut/Limpeza
-  somem no ambiente de produção.
+- **CONFIRMADO em produção pelo Fabio (2026-07-08):** rodou `git pull` → `db:generate` →
+  `npx prisma migrate deploy` (migration do TI, não-destrutivo) → `npm run build` →
+  `systemctl restart chamados.service`. Resultado: **TI de volta no fluxo**, Manutenção/Limpeza
+  ocultos, 15 setores no banco. Fabio: "Tudo certo".
 
 ## Pendências / PRÓXIMO passo
-1. **Fabio rodar o comando acima no srv-alv01** e confirmar: fluxo mostra TI; `SELECT name FROM
-   departments` traz os 15.
+1. ~~Fabio rodar o comando no srv-alv01~~ **✅ CONCLUÍDO (2026-07-08): TI de volta, 15 setores, Manut/Limpeza ocultos.**
 2. **`APP_URL` vazio** no `.env` de prod → link do e-mail de notificação incompleto; preencher ao
    configurar SMTP + restart.
 3. **Revogação por-totem** (limitação): apagar o user do totem não revoga pós-uso; hoje só rotacionando

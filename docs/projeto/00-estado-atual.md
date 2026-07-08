@@ -48,7 +48,10 @@ setores estão prontos por baixo, esperando você liberar.
   (`20260708100000_ti_rh_departamentos`, idempotente). Agora `migrate deploy`/`reset --skip-seed`
   produz o banco completo (15 setores + categorias de TI) sem depender do seed de dev.
 
-## Como aplicar as correções em produção (agora)
+## Como aplicar as correções em produção
+
+> ✅ **Aplicado em produção em 2026-07-08** (TI de volta no fluxo, 15 setores, Manutenção/Limpeza
+> ocultos). Sequência abaixo fica registrada para referência / próximos deploys.
 
 No **srv-alv01**, dentro de `/opt/chamados`:
 
