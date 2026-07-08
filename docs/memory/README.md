@@ -34,6 +34,7 @@
 - gotchas/windows-brace-expansion.md
 - gotchas/postgres-enum-default.md
 - gotchas/migration-seed-ordem-vs-entidade-existente.md
+- gotchas/baseline-consolidado-perde-dados-de-migration.md
 
 ## Procedures
 - procedures/setup-local.md
