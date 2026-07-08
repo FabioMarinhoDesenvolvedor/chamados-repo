@@ -19,7 +19,17 @@
   prioridade/complexidade mas NÃO a nota (avaliação é só do admin); ADMIN vê tudo.
 
 ## Abertura guiada por categorias (blocos)
-- O usuário NÃO digita título livre: escolhe **categoria (bloco)** → **subcategoria**, ambas
+- **Fluxo com 4 passos**: **Setor** (macro-bloco) → **Categoria** → **Subcategoria** → **Detalhe**
+  (opcional) → form. O usuário NÃO digita título livre em nenhum passo.
+- **Passo 0 — Setor (macro-bloco, Plano 3)**: antes da categoria, o usuário escolhe o **setor
+  executor**. Os blocos são **data-driven**: todo `Department` que tenha ≥1 `TicketCategory` com
+  `departmentId` apontando pra ele vira um bloco (sem lista fixa/curada de setores na tela — se o
+  setor ganhar uma categoria amanhã, o bloco aparece sozinho). Escolhido o setor, o passo 1 mostra
+  só as categorias daquele bloco (filtro por `TicketCategory.departmentId`). O ícone do bloco de
+  setor vem de `department-icon.ts` (`packages/web/src/lib/department-icon.ts`): mapa nome→ícone
+  lucide (hoje só TI/Manutenção/Limpeza têm entrada própria) com fallback `Building2` pros demais
+  12 setores. Breadcrumb ganhou o nó "Setor" na frente de "Categoria".
+- Escolhido o setor: escolhe **categoria (bloco)** → **subcategoria**, ambas
   com ícone (lucide), e opcionalmente uma **descrição complementar** (texto livre opcional).
 - O **"Assunto" (title) é derivado** = "Categoria › Subcategoria". `category_id`/`subcategory_id`
   ficam no chamado. Backend valida que a subcategoria pertence à categoria.
@@ -147,7 +157,11 @@ Resposta ≤ conclusão em todas as células.
   `PENDING_APPROVAL` **fica dormente** no schema (mesmo precedente do `TRIAGE`) — não removido do
   Postgres, só não é mais produzido. `Department.requiresApproval` permanece na tabela, inerte.
   Ver [[aprovacao-chamados]] (← SUPERADA) e [[sla-dois-tempos-automatico]].
-- **Notificação híbrida por e-mail** (`Department.notificationEmail` + outbox, Plano 2), o
-  **frontend** do fluxo multi-setorial (macro-bloco, fila por setor, aprovação — Plano 3) e o
-  **totem** (`User.isKiosk`, Plano 4) fazem parte do mesmo design mas ainda não foram
-  implementados — só o backend core (Plano 1) está pronto.
+- **Notificação híbrida por e-mail** (`Department.notificationEmail` + outbox, Plano 2) e o
+  **frontend** do fluxo multi-setorial (Plano 3) estão prontos. O **totem** (`User.isKiosk`,
+  Plano 4) ainda não foi implementado — próxima frente.
+- **Frontend multi-setorial (Plano 3)**: passo de Setor no fluxo guiado de abertura (ver seção
+  "Abertura guiada por categorias" acima) e header do dashboard mostrando **"Fila — <setor>"**
+  para OPERATOR escopado por `departmentId` (ADMIN nunca é escopado, mantém "Chamados"). Não há
+  UI de aprovação no front — a funcionalidade foi removida do backend (ver item acima), então o
+  frontend nunca teve motivo pra implementá-la.
