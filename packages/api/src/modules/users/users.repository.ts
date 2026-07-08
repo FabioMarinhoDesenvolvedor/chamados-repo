@@ -26,6 +26,32 @@ export class UsersRepository {
     return this.prisma.user.update({ where: { id }, data });
   }
 
+  // Upsert idempotente do user kiosk (dispositivo totem): reemitir o token do mesmo
+  // label atualiza nome/setor, mas nunca regrava o hash de senha de um user existente.
+  upsertKiosk(data: {
+    email: string;
+    name: string;
+    departmentId: number;
+    passwordHash: string;
+  }) {
+    return this.prisma.user.upsert({
+      where: { email: data.email },
+      create: {
+        email: data.email,
+        name: data.name,
+        passwordHash: data.passwordHash,
+        role: 'USER',
+        isKiosk: true,
+        mustChangePassword: false,
+        department: { connect: { id: data.departmentId } },
+      },
+      update: {
+        name: data.name,
+        department: { connect: { id: data.departmentId } },
+      },
+    });
+  }
+
   // Vínculos que impedem exclusão (chamados/atividades). read_state é descartável.
   async countBlockingRefs(userId: number): Promise<number> {
     const [requested, assigned, comments, statusChanges] = await this.prisma.$transaction([
