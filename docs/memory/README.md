@@ -36,6 +36,7 @@
 - gotchas/postgres-enum-default.md
 - gotchas/migration-seed-ordem-vs-entidade-existente.md
 - gotchas/baseline-consolidado-perde-dados-de-migration.md
+- gotchas/dado-de-referencia-no-seed-quebra-skip-seed.md
 
 ## Procedures
 - procedures/setup-local.md
@@ -62,3 +63,4 @@
 - handoffs/sessao-2026-07-07-ids-inteiros.md  ← IDs inteiros (UUID→Int, começa em 1) em código + baseline offline COMPLETOS, 89/89 (implementados por Codex, revisados por Claude). PENDENTE: reset/migrate + smoke (Fabio). Inclui limpeza de resíduos de triagem (fora do escopo original — ver handoff)
 - handoffs/sessao-2026-07-07-multi-setorial-plano3.md  ← Plano 3/4 do multi-setorial COMPLETO (frontend: passo de Setor no fluxo guiado + fila por setor no dashboard, data-driven, sem aprovação). Builds shared/web limpos. PENDENTE: smoke com banco no ar (Fabio) + decisão de merge. PRÓXIMO: Plano 4 (totem)
 - handoffs/sessao-2026-07-08-totem-plano4.md  ← Plano 4/4 do multi-setorial COMPLETO (totem/kiosk: User.isKiosk + JWT 365d admin-emitido, originLocation só de kiosk). 97/97 testes, builds limpos. Os 4 planos do design guarda-chuva multi-setorial estão implementados. PENDENTE: smoke com banco no ar (Fabio); 12 setores sem categoria curada. PRÓXIMO: smoke + revisão final whole-branch + merge para main + deploy
+- handoffs/sessao-2026-07-08-deploy-ti-estacionamento.md  ← DEPLOY EM PRODUÇÃO (srv-alv01, chamados.service, porta 8080) + incidente TI (--skip-seed pulou TI/RH do seed → fix em migration d2e4113) + decisão: TI é o core no fluxo, Manutenção/Limpeza ESTACIONADOS (PARKED_DEPARTMENTS em web/lib/blocks.ts). Ver docs/projeto/00-estado-atual.md (âncora). PENDENTE: Fabio rodar migrate deploy+build+restart no servidor
