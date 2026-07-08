@@ -27,6 +27,7 @@
 - decisions/notificacao-hibrida-email.md
 - decisions/sla-dois-tempos-automatico.md
 - decisions/ids-sequenciais-inteiros.md
+- decisions/totem-kiosk-auth.md
 
 ## Gotchas
 - gotchas/responsividade.md
@@ -60,3 +61,4 @@
 - handoffs/sessao-2026-07-07-sla-dois-tempos.md  ← SLA de dois tempos (resposta+conclusão) COMPLETO, 89/89. PENDENTE: db:generate/migrate + smoke com banco no ar (Fabio); revisão final whole-branch a anexar. PRÓXIMO: smoke, depois IDs sequenciais (frente própria) e Planos 3-4 do multi-setorial
 - handoffs/sessao-2026-07-07-ids-inteiros.md  ← IDs inteiros (UUID→Int, começa em 1) em código + baseline offline COMPLETOS, 89/89 (implementados por Codex, revisados por Claude). PENDENTE: reset/migrate + smoke (Fabio). Inclui limpeza de resíduos de triagem (fora do escopo original — ver handoff)
 - handoffs/sessao-2026-07-07-multi-setorial-plano3.md  ← Plano 3/4 do multi-setorial COMPLETO (frontend: passo de Setor no fluxo guiado + fila por setor no dashboard, data-driven, sem aprovação). Builds shared/web limpos. PENDENTE: smoke com banco no ar (Fabio) + decisão de merge. PRÓXIMO: Plano 4 (totem)
+- handoffs/sessao-2026-07-08-totem-plano4.md  ← Plano 4/4 do multi-setorial COMPLETO (totem/kiosk: User.isKiosk + JWT 365d admin-emitido, originLocation só de kiosk). 97/97 testes, builds limpos. Os 4 planos do design guarda-chuva multi-setorial estão implementados. PENDENTE: smoke com banco no ar (Fabio); 12 setores sem categoria curada. PRÓXIMO: smoke + revisão final whole-branch + merge para main + deploy

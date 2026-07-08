@@ -174,6 +174,22 @@ sudo systemctl restart chamados-api      # (ajustar o nome real do unit)
 - Se `SMTP_HOST` setado num setor com `notificationEmail`: e-mail chega com link `${APP_URL}/tickets/<n>`.
 - Operador de um setor só vê a fila do próprio setor ("Fila — <setor>").
 
+## Provisionar um totem
+
+O totem é um dispositivo fixo (tablet/terminal) que abre chamados sem login manual — ver
+`decisions/totem-kiosk-auth.md` na memória do projeto.
+
+1. Um **admin** acessa **Admin → Totem** (`/admin/totem`), informa um rótulo (ex.: "Totem
+   Portaria") e o setor/departamento do solicitante, e gera o token.
+2. A tela mostra a URL `${origin}/totem?token=<jwt>` (com botão Copiar). Abra essa URL **uma
+   única vez** no navegador do próprio dispositivo — ela grava o token e recarrega a página em
+   `/totem`, deixando o totem autenticado por até 365 dias.
+3. **Revogar um totem:** apague o `User` correspondente (e-mail `totem-<rótulo>@kiosk.local`) na
+   gestão de usuários — sem endpoint de logout dedicado, apagar o usuário já invalida o token no
+   próximo request.
+4. Reemitir o token do mesmo rótulo faz **upsert** do mesmo usuário (não duplica); use isso para
+   trocar de setor ou renovar antes do vencimento.
+
 ## Runbook — problemas comuns
 
 | Sintoma | Causa provável | Ação |

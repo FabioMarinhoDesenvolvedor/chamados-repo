@@ -157,11 +157,30 @@ Resposta ≤ conclusão em todas as células.
   `PENDING_APPROVAL` **fica dormente** no schema (mesmo precedente do `TRIAGE`) — não removido do
   Postgres, só não é mais produzido. `Department.requiresApproval` permanece na tabela, inerte.
   Ver [[aprovacao-chamados]] (← SUPERADA) e [[sla-dois-tempos-automatico]].
-- **Notificação híbrida por e-mail** (`Department.notificationEmail` + outbox, Plano 2) e o
-  **frontend** do fluxo multi-setorial (Plano 3) estão prontos. O **totem** (`User.isKiosk`,
-  Plano 4) ainda não foi implementado — próxima frente.
+- **Notificação híbrida por e-mail** (`Department.notificationEmail` + outbox, Plano 2), o
+  **frontend** do fluxo multi-setorial (Plano 3) e o **totem** (`User.isKiosk`, Plano 4) estão
+  prontos — os 4 planos do design guarda-chuva multi-setorial estão implementados.
 - **Frontend multi-setorial (Plano 3)**: passo de Setor no fluxo guiado de abertura (ver seção
   "Abertura guiada por categorias" acima) e header do dashboard mostrando **"Fila — <setor>"**
   para OPERATOR escopado por `departmentId` (ADMIN nunca é escopado, mantém "Chamados"). Não há
   UI de aprovação no front — a funcionalidade foi removida do backend (ver item acima), então o
   frontend nunca teve motivo pra implementá-la.
+
+## Totem/kiosk (Plano 4)
+- **Rota pública `/totem`** (fora do `<Private>`), auto-autenticada por um JWT de longa duração
+  (365d) emitido por um admin em `/admin/totem` (`POST /auth/kiosk-token`). O dispositivo abre
+  `${origin}/totem?token=<jwt>` **uma vez**; a página grava o token e recarrega — depois disso
+  fica logado indefinidamente, sem tela de login. Ver decisão: [[totem-kiosk-auth]].
+- **Fluxo de abertura no totem tem um passo a mais**: **Local** (texto livre, obrigatório —
+  identifica a sala/local físico de onde partiu o chamado) → Setor → Categoria → Subcategoria →
+  Detalhe (opcional) → Descrição (opcional) → Concluir, com **auto-reset** (~8s) na tela de
+  confirmação para o próximo uso.
+- **Blocos de setor no totem excluem o TI**: o totem normalmente fica sob a operação da própria
+  TI, então não faz sentido abrir chamado contra o próprio setor — o passo de Setor no `/totem`
+  usa o mesmo `buildBlocks()` data-driven do fluxo comum (ver "Abertura guiada por categorias"),
+  filtrando fora o bloco `TI`.
+- **`originLocation` só existe para solicitante kiosk**: `TicketsService.create()` exige (400 se
+  vazio) o campo apenas quando `user.isKiosk === true`; para qualquer usuário comum o campo é
+  ignorado (gravado `null`) mesmo se enviado.
+- Revogar um totem = **apagar o `User` kiosk** correspondente (sem endpoint de logout/lista de
+  revogação — ver [[totem-kiosk-auth]]).
