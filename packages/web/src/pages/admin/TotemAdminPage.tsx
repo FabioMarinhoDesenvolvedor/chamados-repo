@@ -144,13 +144,14 @@ export function TotemAdminPage() {
             <p>
               Abra esta URL uma vez no dispositivo do totem para provisioná-lo. O
               token do totem <strong>{result.user.name}</strong> expira em{' '}
-              {result.expiresInDays} dias caso não seja usado.
+              {result.expiresInDays} dias.
             </p>
             <p className="font-medium">
               Este token é um segredo: qualquer pessoa com ele pode abrir chamados em nome
-              deste totem. Não compartilhe fora do dispositivo destinado. Para revogar o
-              acesso, é necessário excluir o usuário do totem (ação futura, ainda não
-              disponível nesta tela).
+              deste totem. Não compartilhe fora do dispositivo destinado. Excluir o usuário
+              do totem não revoga o acesso depois que ele já abriu chamados (limitação
+              conhecida); para invalidar um token vazado hoje é preciso rotacionar o
+              segredo JWT do sistema (afeta todos os usuários, não só este totem).
             </p>
           </div>
         </Card>

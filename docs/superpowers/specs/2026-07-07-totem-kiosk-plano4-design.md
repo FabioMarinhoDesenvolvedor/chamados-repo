@@ -10,8 +10,10 @@
 
 1. **Auth do totem: admin gera o token no painel.** Endpoint admin-only emite um JWT de **vida
    longa** (365d) para um `User` kiosk; o admin cola o token no dispositivo. Sem credenciais no
-   aparelho. **Revogação** = apagar o `User` kiosk (o `JwtStrategy.validate` busca o user no banco;
-   sem user, o token morre).
+   aparelho. **Revogação (limitação conhecida do MVP):** apagar o `User` kiosk **não funciona**
+   depois que ele já abriu chamados (é solicitante deles; `DELETE /users/:id` bloqueia com 409
+   havendo referências). Para invalidar um token vazado hoje, só rotacionando `JWT_SECRET` (invalida
+   TODOS os tokens, todos reautenticam). Revogação por-totem sem afetar os demais é follow-up.
 2. **Setores no totem: data-driven, menos TI.** Os blocos são os `Department` executores com ≥1
    categoria, **exceto TI** (interno). Setores públicos novos aparecem sozinhos quando curados —
    consistente com o macro-bloco do Plano 3.
@@ -22,7 +24,8 @@
 
 ## Não-objetivos
 
-- Auto-renovação/rotação automática do token (MVP: 365d + re-emitir; revogar apagando o user).
+- Auto-renovação/rotação automática do token (MVP: 365d + re-emitir; revogação por-totem sem
+  rotacionar `JWT_SECRET` é limitação conhecida — ver §1 e §4).
 - Multi-idioma, acessibilidade além do padrão, telemetria do totem.
 - Provisionamento físico do dispositivo (como o navegador é travado em `/totem`) — fora do software.
 - Curadoria de categorias dos setores ainda sem árvore (segue como pendência do multi-setorial).
@@ -114,7 +117,13 @@ O(s) `User`(s) kiosk são criados sob demanda pelo endpoint de emissão (decisã
 
 - Token de vida longa num dispositivo público: aceito (spec §10). O que ele permite é só o que o
   totem faz — **abrir chamados** e ver os próprios (do user kiosk). Não acessa dados de outros
-  setores/usuários (RBAC de USER). Emissão é **admin-only**. Revogação = apagar o `User` kiosk.
+  setores/usuários (RBAC de USER). Emissão é **admin-only**.
+- **Revogação (limitação conhecida do MVP):** apagar o `User` do totem **não funciona** depois que
+  ele já abriu chamados (o usuário é solicitante deles e a exclusão é bloqueada com 409). Para
+  invalidar um token vazado hoje, é preciso **rotacionar `JWT_SECRET`** (invalida TODOS os tokens —
+  todos reautenticam — e depois re-emitir os tokens dos totens). Revogação por-totem sem rotacionar
+  o segredo é um follow-up (versão de token por usuário kiosk). Trate o token como segredo e o
+  dispositivo como físico-controlado.
 - `originLocation` só é aceito de solicitante kiosk — usuário comum não injeta origem falsa.
 - O endpoint de emissão nunca expõe senha; o user kiosk não tem senha utilizável.
 

@@ -20,8 +20,13 @@ sem inventar um mecanismo de auth paralelo ao JWT existente.
     login por senha;
   - assina um JWT com `expiresIn: '365d'` (dispositivo fixo, sem login manual, ao contrário do
     token curto do usuário humano) e retorna a URL de provisionamento.
-- **Revogação = apagar o `User` kiosk.** Sem lista de revogação, sem endpoint de logout do totem:
-  o token para de validar assim que `JwtStrategy.validate()` não encontra mais o usuário.
+- **Revogação (limitação conhecida do MVP):** apagar o `User` do totem **não funciona** depois que
+  ele já abriu chamados (o usuário é solicitante deles e `DELETE /users/:id` bloqueia com 409
+  quando há referências — `usersService.countBlockingRefs`). Para invalidar um token vazado hoje, é
+  preciso **rotacionar `JWT_SECRET`** (invalida TODOS os tokens — todo mundo reautentica — e depois
+  re-emitir os tokens dos totens). Revogação por-totem sem rotacionar o segredo é um follow-up
+  (versão de token/`jti` por usuário kiosk). Sem lista de revogação, sem endpoint de logout do
+  totem hoje.
 - **Departamento do kiosk = departamento do solicitante** (`User.departmentId`), igual a qualquer
   usuário — alimenta a matriz de prioridade normalmente. Não é o setor executor.
 - **Provisionamento físico por URL, sem app**: `/totem?token=<jwt>` grava o token na mesma chave
@@ -37,10 +42,11 @@ sem inventar um mecanismo de auth paralelo ao JWT existente.
 - Painel admin `/admin/totem` gera o token e mostra `${origin}/totem?token=…` + botão Copiar — é
   a única superfície de UI para provisionar; não há CRUD de totens (o "totem" é só um `User` com
   `isKiosk=true`, gerenciável como qualquer usuário se necessário).
-- Comprometimento de um totem (device roubado) obriga apagar o `User` kiosk e gerar um novo token
-  — invalida qualquer chamado aberto por aquele dispositivo específico, não afeta os demais.
+- Comprometimento de um totem (device roubado) **não tem revogação pontual**: apagar o `User`
+  kiosk falha com 409 assim que o totem já abriu algum chamado. Na prática, hoje o único remédio é
+  rotacionar `JWT_SECRET` (afeta todos os usuários, não só o totem comprometido).
 - Token de 365d é mais longo que o padrão (`JWT_EXPIRES_IN=1d`, ver `07-operacao-deploy.md`) —
-  aceito porque o risco é mitigado pela revogação simples (apagar o user) e pelo escopo do JWT
-  (role USER comum, sem privilégio administrativo).
+  aceito com o escopo do JWT limitado (role USER comum, sem privilégio administrativo) mitigando o
+  risco; a revogação por-totem em si é a lacuna descrita acima.
 - Sem sync de "quem é o kiosk" em relatórios/dashboards — chamados abertos por totem aparecem como
   qualquer chamado do `requesterId` correspondente, distinguíveis pelo `originLocation` preenchido.

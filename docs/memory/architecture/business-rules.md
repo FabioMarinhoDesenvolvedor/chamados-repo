@@ -182,5 +182,8 @@ Resposta ≤ conclusão em todas as células.
 - **`originLocation` só existe para solicitante kiosk**: `TicketsService.create()` exige (400 se
   vazio) o campo apenas quando `user.isKiosk === true`; para qualquer usuário comum o campo é
   ignorado (gravado `null`) mesmo se enviado.
-- Revogar um totem = **apagar o `User` kiosk** correspondente (sem endpoint de logout/lista de
-  revogação — ver [[totem-kiosk-auth]]).
+- **Revogação (limitação conhecida do MVP):** apagar o `User` do totem **não funciona** depois que
+  ele já abriu chamados (é solicitante deles; `DELETE /users/:id` bloqueia com 409). Para invalidar
+  um token vazado hoje, é preciso **rotacionar `JWT_SECRET`** (invalida TODOS os tokens — todos
+  reautenticam — e depois re-emitir os tokens dos totens). Revogação por-totem sem rotacionar o
+  segredo é um follow-up (versão de token por usuário kiosk) — ver [[totem-kiosk-auth]].

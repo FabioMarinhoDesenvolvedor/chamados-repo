@@ -184,11 +184,18 @@ O totem é um dispositivo fixo (tablet/terminal) que abre chamados sem login man
 2. A tela mostra a URL `${origin}/totem?token=<jwt>` (com botão Copiar). Abra essa URL **uma
    única vez** no navegador do próprio dispositivo — ela grava o token e recarrega a página em
    `/totem`, deixando o totem autenticado por até 365 dias.
-3. **Revogar um totem:** apague o `User` correspondente (e-mail `totem-<rótulo>@kiosk.local`) na
-   gestão de usuários — sem endpoint de logout dedicado, apagar o usuário já invalida o token no
-   próximo request.
-4. Reemitir o token do mesmo rótulo faz **upsert** do mesmo usuário (não duplica); use isso para
-   trocar de setor ou renovar antes do vencimento.
+   > **Atenção:** abrir `/totem?token=…` num navegador que já tem uma sessão logada **sobrescreve o
+   > login atual** (a chave `chamados.token` é compartilhada entre login humano e totem). Use um
+   > **dispositivo/navegador dedicado** ao totem, nunca o navegador do dia a dia de alguém.
+3. **Revogação (limitação conhecida do MVP):** apagar o `User` do totem (e-mail
+   `totem-<rótulo>@kiosk.local`) **não funciona** depois que ele já abriu algum chamado — a
+   exclusão é bloqueada (409) porque o usuário é solicitante desses chamados. Para invalidar um
+   token vazado hoje, é preciso **rotacionar `JWT_SECRET`** (invalida TODOS os tokens do sistema —
+   todo mundo reautentica — e depois re-emitir os tokens de cada totem). Revogação por-totem sem
+   afetar os demais usuários é um follow-up (versão de token por usuário kiosk).
+4. Reemitir o token do mesmo rótulo faz **upsert** do mesmo usuário (não duplica) — isso **não**
+   revoga o token anterior (ambos continuam válidos até expirar); use para trocar de setor ou
+   renovar antes do vencimento.
 
 ## Runbook — problemas comuns
 
