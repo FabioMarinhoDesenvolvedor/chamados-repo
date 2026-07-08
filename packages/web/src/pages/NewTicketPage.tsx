@@ -1,7 +1,12 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useMemo, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ChevronRight } from 'lucide-react';
-import { CategoryWithSubcategories, TicketDetailOption, TicketSubcategory } from '@chamados/shared';
+import {
+  CategoryWithSubcategories,
+  Department,
+  TicketDetailOption,
+  TicketSubcategory,
+} from '@chamados/shared';
 import { useAuth } from '@/auth/auth-context';
 import { useDepartments } from '@/features/departments/api';
 import { useUsers } from '@/features/users/api';
@@ -15,6 +20,21 @@ import { Textarea } from '@/components/ui/textarea';
 import { Spinner } from '@/components/ui/spinner';
 import { CategoryIcon } from '@/components/CategoryIcon';
 import { AttachmentInput } from '@/components/AttachmentInput';
+import { departmentIcon } from '@/lib/department-icon';
+
+// Blocos de setor = setores executores que têm ao menos uma categoria. Data-driven.
+function buildBlocks(
+  categories: CategoryWithSubcategories[],
+  departments: Department[],
+): { id: number; name: string }[] {
+  const withDept = new Set(
+    categories.map((c) => c.departmentId).filter((d): d is number => d != null),
+  );
+  return departments
+    .filter((d) => withDept.has(d.id))
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((d) => ({ id: d.id, name: d.name }));
+}
 
 // Card de bloco/sub-bloco: ícone (lucide) + rótulo, layout idêntico entre todos.
 function BlockCard({
@@ -53,6 +73,7 @@ export function NewTicketPage() {
   const createTicket = useCreateTicket();
   const uploadAttachments = useUploadAttachments();
 
+  const [block, setBlock] = useState<{ id: number; name: string } | null>(null);
   const [category, setCategory] = useState<CategoryWithSubcategories | null>(null);
   const [subcategory, setSubcategory] = useState<TicketSubcategory | null>(null);
   const [detailOption, setDetailOption] = useState<TicketDetailOption | null>(null);
@@ -63,6 +84,15 @@ export function NewTicketPage() {
   const [requesterId, setRequesterId] = useState<number | ''>('');
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState('');
+
+  const blocks = useMemo(
+    () => (categories && departments ? buildBlocks(categories, departments) : []),
+    [categories, departments],
+  );
+  const blockCategories = useMemo(
+    () => (block ? (categories ?? []).filter((c) => c.departmentId === block.id) : []),
+    [categories, block],
+  );
 
   const userDeptName = departments?.find((d) => d.id === user?.departmentId)?.name ?? '';
   const userHasNoDept = !isAdmin && !user?.departmentId;
@@ -84,6 +114,14 @@ export function NewTicketPage() {
   }
 
   function backToCategories() {
+    setCategory(null);
+    setSubcategory(null);
+    setDetailOption(null);
+    setDetailSkipped(false);
+  }
+
+  function backToBlocks() {
+    setBlock(null);
     setCategory(null);
     setSubcategory(null);
     setDetailOption(null);
@@ -135,11 +173,23 @@ export function NewTicketPage() {
       <nav className="flex flex-wrap items-center gap-1 text-sm">
         <button
           type="button"
-          onClick={backToCategories}
-          className={category ? 'text-grena hover:underline' : 'font-medium text-gray-800'}
+          onClick={backToBlocks}
+          className={block ? 'text-grena hover:underline' : 'font-medium text-gray-800'}
         >
-          Categorias
+          Setor
         </button>
+        {block && (
+          <>
+            <ChevronRight className="h-4 w-4 text-gray-400" />
+            <button
+              type="button"
+              onClick={() => { setCategory(null); setSubcategory(null); setDetailOption(null); setDetailSkipped(false); }}
+              className={category ? 'text-grena hover:underline' : 'font-medium text-gray-800'}
+            >
+              {block.name}
+            </button>
+          </>
+        )}
         {category && (
           <>
             <ChevronRight className="h-4 w-4 text-gray-400" />
@@ -187,12 +237,24 @@ export function NewTicketPage() {
             Tentar novamente
           </Button>
         </Card>
-      ) : !category ? (
-        // Passo 1: blocos principais
+      ) : !block ? (
+        // Passo 0: macro-bloco (setor) — data-driven
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {categories?.map((c) => (
-            <BlockCard key={c.id} icon={c.icon} label={c.name} onClick={() => setCategory(c)} />
+          {blocks.map((b) => (
+            <BlockCard key={b.id} icon={departmentIcon(b.name)} label={b.name} onClick={() => setBlock(b)} />
           ))}
+        </div>
+      ) : !category ? (
+        // Passo 1: categorias do setor escolhido
+        <div className="space-y-4">
+          <Button variant="ghost" className="px-2" onClick={backToBlocks}>
+            <ArrowLeft className="mr-1 h-4 w-4" /> Voltar para os setores
+          </Button>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {blockCategories.map((c) => (
+              <BlockCard key={c.id} icon={c.icon} label={c.name} onClick={() => setCategory(c)} />
+            ))}
+          </div>
         </div>
       ) : !subcategory ? (
         // Passo 2: subcategorias do bloco

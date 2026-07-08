@@ -62,6 +62,16 @@ import {
   MessageSquareWarning,
   CircleAlert,
   FileWarning,
+  Armchair,
+  Building2,
+  DoorClosed,
+  Hammer,
+  ShowerHead,
+  Snowflake,
+  Sparkles,
+  Trash2,
+  Trees,
+  Zap,
 } from 'lucide-react';
 
 // Registry explícito (só os ícones usados → tree-shaking). O nome vem do banco
@@ -131,6 +141,16 @@ const ICONS = {
   MessageSquareWarning,
   CircleAlert,
   FileWarning,
+  Armchair,
+  Building2,
+  DoorClosed,
+  Hammer,
+  ShowerHead,
+  Snowflake,
+  Sparkles,
+  Trash2,
+  Trees,
+  Zap,
 } as const;
 
 export function CategoryIcon({ name, className }: { name: string; className?: string }) {
