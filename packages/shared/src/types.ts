@@ -43,6 +43,8 @@ export interface TicketCategory {
   name: string;
   icon: string; // nome do icone lucide-react
   sortOrder: number;
+  // Setor EXECUTOR dono do bloco (roteamento). Null = categoria legada sem setor.
+  departmentId: number | null;
 }
 
 export interface TicketDetailOption {
