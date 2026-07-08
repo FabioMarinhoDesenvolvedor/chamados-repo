@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ExternalLink,
+  MonitorSmartphone,
 } from 'lucide-react';
 import { useAuth } from '@/auth/auth-context';
 import { useUnreadCount } from '@/features/tickets/api';
@@ -36,6 +37,7 @@ const NAV: NavItem[] = [
   { to: '/admin/departments', label: 'Departamentos', icon: Building2, adminOnly: true },
   { to: '/admin/reports', label: 'Relatórios', icon: FileText, adminOnly: true },
   { to: '/admin/backup', label: 'Backup', icon: Database, adminOnly: true },
+  { to: '/admin/totem', label: 'Totem', icon: MonitorSmartphone, adminOnly: true },
 ];
 
 

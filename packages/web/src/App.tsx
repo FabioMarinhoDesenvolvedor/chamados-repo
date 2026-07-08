@@ -13,6 +13,7 @@ import { UsersPage } from '@/pages/admin/UsersPage';
 import { DepartmentsPage } from '@/pages/admin/DepartmentsPage';
 import { ReportsPage } from '@/pages/admin/ReportsPage';
 import { BackupPage } from '@/pages/admin/BackupPage';
+import { TotemAdminPage } from '@/pages/admin/TotemAdminPage';
 
 function Private({ children, adminOnly }: { children: ReactNode; adminOnly?: boolean }) {
   return (
@@ -48,6 +49,10 @@ export function App() {
         <Route
           path="/admin/backup"
           element={<Private adminOnly><BackupPage /></Private>}
+        />
+        <Route
+          path="/admin/totem"
+          element={<Private adminOnly><TotemAdminPage /></Private>}
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
